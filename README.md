@@ -188,6 +188,18 @@ response = requests.post(
 )
 ```
 
+## 🌐 显卡平台部署
+
+在 AutoDL、恒源云等平台部署？查看详细指南：
+
+📖 **[显卡租赁平台部署指南](docs/GPU_PLATFORM_DEPLOY.md)**
+
+包含：
+- 完整部署流程
+- 内网穿透配置
+- 性能优化建议
+- 常见问题解决
+
 ## 📁 音色管理
 
 ### 音色目录结构
@@ -446,13 +458,52 @@ server {
 }
 ```
 
-### 使用 Cloudflare Tunnel
+### 内网穿透（显卡租赁平台必备）
+
+如果你在 AutoDL、恒源云等没有公网 IP 的平台上部署，需要使用内网穿透：
+
+#### 方案 1：Cloudflare Tunnel（推荐，免费）
 
 ```bash
-# 安装 cloudflared
-# 然后运行
-cloudflared tunnel --url localhost:5050
+# 快速启动（临时链接）
+chmod +x scripts/quick_tunnel.sh
+./scripts/quick_tunnel.sh
+
+# 或完整配置（持久链接）
+chmod +x scripts/setup_cloudflare_tunnel.sh
+./scripts/setup_cloudflare_tunnel.sh
 ```
+
+优点：
+- 完全免费，无流量限制
+- 稳定可靠，全球 CDN 加速
+- 支持自定义域名
+- 自动 HTTPS
+
+#### 方案 2：FRP（需要自己的服务器）
+
+```bash
+chmod +x scripts/setup_frp.sh
+./scripts/setup_frp.sh
+# 编辑 frp/frpc.ini 填入服务器信息
+./frp/frpc -c frp/frpc.ini
+```
+
+#### 方案 3：NATAPP（国内免费）
+
+```bash
+chmod +x scripts/setup_natapp.sh
+./scripts/setup_natapp.sh
+# 访问 https://natapp.cn/ 获取 token
+./natapp -authtoken=YOUR_TOKEN -proto=tcp -lport=5050
+```
+
+#### 方案 4：显卡平台自带端口映射
+
+部分平台提供端口映射功能：
+- AutoDL：容器设置 → 自定义服务 → 添加端口 5050
+- 恒源云：实例详情 → 端口映射 → 添加映射
+- 矩池云：容器管理 → 端口转发
 
 ## 📝 开发
 

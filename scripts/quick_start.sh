@@ -76,15 +76,14 @@ fi
 # 检查音色文件
 echo ""
 echo "检查音色文件..."
-if [ -f "presets/default.wav" ]; then
+if [ -f "presets/default/default.wav" ]; then
     echo -e "${GREEN}✓ 默认音色存在${NC}"
 else
     echo -e "${YELLOW}⚠️  默认音色不存在，正在创建...${NC}"
     if command -v python3 &> /dev/null; then
-        python3 scripts/create_default_voice.py
-        echo -e "${GREEN}✓ 默认音色创建完成${NC}"
+        python3 scripts/create_default_voice.py || echo -e "${YELLOW}⚠️  跳过默认音色创建（将在容器内自动创建）${NC}"
     else
-        echo -e "${RED}✗ Python3 未安装，无法创建默认音色${NC}"
+        echo -e "${YELLOW}⚠️  Python3 未安装，将在容器内自动创建默认音色${NC}"
     fi
 fi
 

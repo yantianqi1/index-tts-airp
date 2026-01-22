@@ -1,7 +1,17 @@
 """创建默认音色文件（支持新的层级结构）"""
-import numpy as np
-import soundfile as sf
+import sys
 from pathlib import Path
+
+try:
+    import numpy as np
+    import soundfile as sf
+except ImportError as e:
+    print(f"⚠️  缺少依赖: {e}")
+    print("请先安装依赖:")
+    print("  pip install soundfile numpy")
+    print()
+    print("或者跳过此步骤，在 Docker 容器启动后会自动创建默认音色。")
+    sys.exit(0)  # 使用 0 退出码，不中断安装流程
 
 # 创建 presets 目录
 presets_dir = Path("presets")

@@ -5,6 +5,9 @@
 echo "🚀 启动 TTS 聊天应用..."
 echo ""
 
+# 后端端口（默认 8080，可通过 PORT 覆盖）
+BACKEND_PORT="${PORT:-8080}"
+
 # 检查是否在正确的目录
 if [ ! -f "app/main.py" ]; then
     echo "❌ 错误: 请在项目根目录运行此脚本"
@@ -24,8 +27,8 @@ if ! command -v node &> /dev/null; then
 fi
 
 # 启动后端
-echo "📡 启动后端 TTS 服务 (端口 8080)..."
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 &
+echo "📡 启动后端 TTS 服务 (端口 $BACKEND_PORT)..."
+PORT="$BACKEND_PORT" python -m uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" &
 BACKEND_PID=$!
 echo "   后端 PID: $BACKEND_PID"
 
@@ -53,8 +56,8 @@ echo "✅ 服务启动完成！"
 echo ""
 echo "📍 访问地址:"
 echo "   前端: http://localhost:3000"
-echo "   后端: http://localhost:8080"
-echo "   API 文档: http://localhost:8080/docs"
+echo "   后端: http://localhost:$BACKEND_PORT"
+echo "   API 文档: http://localhost:$BACKEND_PORT/docs"
 echo ""
 echo "⏹️  停止服务: Ctrl+C 或运行 ./stop_all.sh"
 echo ""

@@ -17,10 +17,11 @@ if [ -f "logs/app.pid" ]; then
     fi
 else
     # 通过端口查找
-    PID=$(lsof -t -i:8080)
+    PORT="${PORT:-8080}"
+    PID=$(lsof -t -i:"$PORT")
     if [ ! -z "$PID" ]; then
         kill $PID
-        echo "✓ 服务已停止 (PID: $PID)"
+        echo "✓ 服务已停止 (PID: $PID, port: $PORT)"
     else
         echo "⚠️  未找到运行中的服务"
     fi

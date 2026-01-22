@@ -6,7 +6,8 @@ echo "⚠️  这是临时链接，关闭后失效"
 echo ""
 
 # 检查服务是否运行
-if ! curl -s http://localhost:8080 > /dev/null; then
+PORT="${PUBLIC_PORT:-8080}"
+if ! curl -s "http://localhost:$PORT" > /dev/null; then
     echo "❌ 服务未运行，请先启动 IndexTTS 服务"
     echo "运行: ./scripts/deploy_direct.sh"
     exit 1
@@ -27,4 +28,4 @@ fi
 
 echo "✅ 正在创建公网访问链接..."
 echo ""
-cloudflared tunnel --url http://localhost:8080
+cloudflared tunnel --url "http://localhost:$PORT"

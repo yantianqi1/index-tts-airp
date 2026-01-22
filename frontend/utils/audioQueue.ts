@@ -1,100 +1,79 @@
-interface AudioTask {
-  text: string;
-  id: string;
-}
+import { generateSpeech } from './ttsApi';
+import { TTSConfig } from '@/store/useGlobalStore';
 
-export interface TTSParams {
-  apiUrl: string;
-  voice: string;
-  emotion: string;
-  speed: number;
-  responseFormat: 'wav' | 'mp3';
-  temperature: number;
-  topP: number;
-  topK: number;
-  repetitionPenalty: number;
+interface QueueItem {
+  text: string;
+  blob?: Blob;
+  status: 'pending' | 'generating' | 'ready' | 'playing' | 'completed' | 'error';
 }
 
 export class AudioQueueManager {
-  private queue: AudioTask[] = [];
-  private isPlaying: boolean = false;
+  private queue: QueueItem[] = [];
   private currentAudio: HTMLAudioElement | null = null;
-  private ttsParams: TTSParams;
+  private isProcessing = false;
+  private config: TTSConfig;
 
-  constructor(ttsParams: TTSParams) {
-    this.ttsParams = ttsParams;
+  constructor(config: TTSConfig) {
+    this.config = config;
   }
 
-  updateConfig(ttsParams: TTSParams) {
-    this.ttsParams = ttsParams;
+  updateConfig(config: TTSConfig) {
+    this.config = config;
   }
 
   async enqueue(text: string) {
-    const task: AudioTask = {
-      text,
-      id: Date.now().toString() + Math.random(),
-    };
-    
-    this.queue.push(task);
-    console.log(`[AudioQueue] Enqueued: "${text}"`);
-    
-    if (!this.isPlaying) {
-      await this.processQueue();
-    }
-  }
-
-  private async processQueue() {
-    if (this.queue.length === 0) {
-      this.isPlaying = false;
+    // Check if already in queue
+    if (this.queue.some(item => item.text === text)) {
       return;
     }
 
-    this.isPlaying = true;
-    const task = this.queue.shift()!;
+    const item: QueueItem = {
+      text,
+      status: 'pending',
+    };
 
-    try {
-      console.log(`[AudioQueue] Processing: "${task.text}"`);
-      const audioBlob = await this.synthesizeSpeech(task.text);
-      await this.playAudio(audioBlob);
-    } catch (error) {
-      console.error('[AudioQueue] Error processing task:', error);
-    }
-
-    // 播放完毕后处理下一个
-    await this.processQueue();
+    this.queue.push(item);
+    this.processQueue();
   }
 
-  private async synthesizeSpeech(text: string): Promise<Blob> {
-    const response = await fetch(this.ttsParams.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: text,
-        voice: this.ttsParams.voice,
-        emotion: this.ttsParams.emotion,
-        speed: this.ttsParams.speed,
-        response_format: this.ttsParams.responseFormat,
-        temperature: this.ttsParams.temperature,
-        top_p: this.ttsParams.topP,
-        top_k: this.ttsParams.topK,
-        repetition_penalty: this.ttsParams.repetitionPenalty,
-      }),
-    });
+  private async processQueue() {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
 
-    if (!response.ok) {
-      throw new Error(`TTS API error: ${response.status}`);
+    while (this.queue.length > 0) {
+      const item = this.queue[0];
+
+      try {
+        // Generate audio if not ready
+        if (item.status === 'pending') {
+          item.status = 'generating';
+          item.blob = await generateSpeech(this.config, item.text);
+          item.status = 'ready';
+        }
+
+        // Play audio
+        if (item.status === 'ready' && item.blob) {
+          item.status = 'playing';
+          await this.playAudio(item.blob);
+          item.status = 'completed';
+        }
+
+        // Remove completed item
+        this.queue.shift();
+      } catch (error) {
+        console.error('Audio queue error:', error);
+        item.status = 'error';
+        this.queue.shift();
+      }
     }
 
-    return await response.blob();
+    this.isProcessing = false;
   }
 
   private playAudio(blob: Blob): Promise<void> {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      
       this.currentAudio = audio;
 
       audio.onended = () => {
@@ -119,21 +98,10 @@ export class AudioQueueManager {
       this.currentAudio = null;
     }
     this.queue = [];
-    this.isPlaying = false;
+    this.isProcessing = false;
   }
 
-  clear() {
-    this.queue = [];
+  getQueueLength(): number {
+    return this.queue.length;
   }
-}
-
-// 提取双引号内的文本
-export function extractQuotedTexts(text: string): string[] {
-  // 匹配中文双引号 "..." 和英文双引号 "..."
-  const chineseQuotes = text.match(/[""]([^""]+)[""]|"([^"]+)"/g) || [];
-  
-  return chineseQuotes.map(match => {
-    // 去除引号
-    return match.replace(/^[""]|[""]$/g, '').replace(/^"|"$/g, '');
-  }).filter(t => t.trim().length > 0);
 }

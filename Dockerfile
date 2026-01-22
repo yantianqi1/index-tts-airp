@@ -34,11 +34,12 @@ if [ ! -f "/app/presets/default/default.wav" ]; then\n\
 fi\n\
 \n\
 # 启动应用\n\
-exec python -m uvicorn app.main:app --host 0.0.0.0 --port 5050\n\
+PORT="${PORT:-8080}"\n\
+exec python -m uvicorn app.main:app --host 0.0.0.0 --port "$PORT"\n\
 ' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # 暴露端口
-EXPOSE 5050
+EXPOSE 8080
 
 # 启动命令
 CMD ["/app/entrypoint.sh"]

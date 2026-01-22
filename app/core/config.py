@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     app_name: str = "VoiceNexus"
     app_version: str = "1.0.0"
     host: str = "0.0.0.0"
-    port: int = 8888
+    port: int = 8080
     
     # 路径配置
     weights_dir: Path = Path("./weights")

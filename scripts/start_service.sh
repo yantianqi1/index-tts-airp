@@ -10,8 +10,9 @@ pkill -f "uvicorn app.main:app"
 sleep 2
 
 # 启动服务
-echo "Starting service on port 8080..."
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 > logs/service.log 2>&1 &
+PORT="${PORT:-8080}"
+echo "Starting service on port $PORT..."
+PORT="$PORT" python -m uvicorn app.main:app --host 0.0.0.0 --port "$PORT" > logs/service.log 2>&1 &
 
 # 等待服务启动
 sleep 3

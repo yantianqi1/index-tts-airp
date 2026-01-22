@@ -38,47 +38,71 @@ else
 fi
 
 # 检查前端配置
-if grep -q "localhost:8080" frontend/store/useSettings.ts; then
-    echo "   ✅ frontend/store/useSettings.ts - 端口已更新为 8080"
+if [ -f "frontend/store/useSettings.ts" ]; then
+    if grep -q "localhost:8080" frontend/store/useSettings.ts; then
+        echo "   ✅ frontend/store/useSettings.ts - 端口已更新为 8080"
+    else
+        echo "   ❌ frontend/store/useSettings.ts - 端口未正确更新"
+    fi
 else
-    echo "   ❌ frontend/store/useSettings.ts - 端口未正确更新"
+    echo "   ⚠️  frontend/store/useSettings.ts 不存在，跳过检查"
 fi
 
 # 检查 docker-compose.yml
-if grep -q "8080:8080" docker-compose.yml; then
-    echo "   ✅ docker-compose.yml - 端口已更新为 8080"
+if [ -f "docker-compose.yml" ]; then
+    if grep -q "8080:8080" docker-compose.yml; then
+        echo "   ✅ docker-compose.yml - 端口已更新为 8080"
+    else
+        echo "   ❌ docker-compose.yml - 端口未正确更新"
+    fi
 else
-    echo "   ❌ docker-compose.yml - 端口未正确更新"
+    echo "   ⚠️  docker-compose.yml 不存在，跳过检查"
 fi
 
 echo ""
 echo "3. 验证启动脚本..."
 
-if grep -q "端口 8080" start_all.sh; then
-    echo "   ✅ start_all.sh - 端口已更新为 8080"
+if [ -f "start_all.sh" ]; then
+    if grep -q "端口 8080" start_all.sh; then
+        echo "   ✅ start_all.sh - 端口已更新为 8080"
+    else
+        echo "   ❌ start_all.sh - 端口未正确更新"
+    fi
 else
-    echo "   ❌ start_all.sh - 端口未正确更新"
+    echo "   ⚠️  start_all.sh 不存在，跳过检查"
 fi
 
-if grep -q "port 8080" scripts/start_service.sh; then
-    echo "   ✅ scripts/start_service.sh - 端口已更新为 8080"
+if [ -f "scripts/start_service.sh" ]; then
+    if grep -q "port 8080" scripts/start_service.sh; then
+        echo "   ✅ scripts/start_service.sh - 端口已更新为 8080"
+    else
+        echo "   ❌ scripts/start_service.sh - 端口未正确更新"
+    fi
 else
-    echo "   ❌ scripts/start_service.sh - 端口未正确更新"
+    echo "   ⚠️  scripts/start_service.sh 不存在，跳过检查"
 fi
 
 echo ""
 echo "4. 验证文档..."
 
-if grep -q "localhost:8080" README.md; then
-    echo "   ✅ README.md - 端口已更新为 8080"
+if [ -f "README.md" ]; then
+    if grep -q "localhost:8080" README.md; then
+        echo "   ✅ README.md - 端口已更新为 8080"
+    else
+        echo "   ❌ README.md - 端口未正确更新"
+    fi
 else
-    echo "   ❌ README.md - 端口未正确更新"
+    echo "   ⚠️  README.md 不存在，跳过检查"
 fi
 
-if grep -q "localhost:8080" FRONTEND_INTEGRATION.md; then
-    echo "   ✅ FRONTEND_INTEGRATION.md - 端口已更新为 8080"
+if [ -f "FRONTEND_INTEGRATION.md" ]; then
+    if grep -q "localhost:8080" FRONTEND_INTEGRATION.md; then
+        echo "   ✅ FRONTEND_INTEGRATION.md - 端口已更新为 8080"
+    else
+        echo "   ❌ FRONTEND_INTEGRATION.md - 端口未正确更新"
+    fi
 else
-    echo "   ❌ FRONTEND_INTEGRATION.md - 端口未正确更新"
+    echo "   ⚠️  FRONTEND_INTEGRATION.md 不存在，跳过检查"
 fi
 
 echo ""

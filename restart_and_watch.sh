@@ -5,8 +5,12 @@
 
 set -e
 
-PROJECT_DIR="$HOME/index-tts-airp"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
 LOG_DIR="$PROJECT_DIR/logs"
+PUBLIC_PORT="${PUBLIC_PORT:-8080}"
+BACKEND_PORT="${BACKEND_PORT:-8888}"
+FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 
 echo "=========================================="
 echo "🔄 开始重启所有服务..."
@@ -22,21 +26,21 @@ sleep 3
 
 # 确保端口完全释放
 echo "🔍 检查端口占用..."
-if lsof -i :8080 > /dev/null 2>&1; then
-    echo "⚠️  端口 8080 被占用，强制清理..."
-    lsof -ti :8080 | xargs kill -9 || true
+if lsof -i :$PUBLIC_PORT > /dev/null 2>&1; then
+    echo "⚠️  端口 $PUBLIC_PORT 被占用，强制清理..."
+    lsof -ti :$PUBLIC_PORT | xargs kill -9 || true
     sleep 1
 fi
 
-if lsof -i :8888 > /dev/null 2>&1; then
-    echo "⚠️  端口 8888 被占用，强制清理..."
-    lsof -ti :8888 | xargs kill -9 || true
+if lsof -i :$BACKEND_PORT > /dev/null 2>&1; then
+    echo "⚠️  端口 $BACKEND_PORT 被占用，强制清理..."
+    lsof -ti :$BACKEND_PORT | xargs kill -9 || true
     sleep 1
 fi
 
-if lsof -i :3000 > /dev/null 2>&1; then
-    echo "⚠️  端口 3000 被占用，强制清理..."
-    lsof -ti :3000 | xargs kill -9 || true
+if lsof -i :$FRONTEND_PORT > /dev/null 2>&1; then
+    echo "⚠️  端口 $FRONTEND_PORT 被占用，强制清理..."
+    lsof -ti :$FRONTEND_PORT | xargs kill -9 || true
     sleep 1
 fi
 
@@ -48,11 +52,11 @@ mkdir -p "$LOG_DIR"
 
 # 3. 启动 Nginx
 echo ""
-echo "🌐 步骤 2/4: 启动 Nginx (端口 8080)..."
+echo "🌐 步骤 2/4: 启动 Nginx (端口 $PUBLIC_PORT)..."
 nginx -c "$PROJECT_DIR/nginx_8080.conf"
 sleep 1
 
-if pgrep -f "nginx.*8080" > /dev/null; then
+if pgrep -f "nginx.*$PUBLIC_PORT" > /dev/null; then
     echo "✓ Nginx 启动成功"
 else
     echo "✗ Nginx 启动失败"
@@ -61,9 +65,9 @@ fi
 
 # 4. 启动后端
 echo ""
-echo "🚀 步骤 3/4: 启动后端服务 (端口 8888)..."
+echo "🚀 步骤 3/4: 启动后端服务 (端口 $BACKEND_PORT)..."
 cd "$PROJECT_DIR"
-nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8888 > "$LOG_DIR/backend.log" 2>&1 &
+PORT="$BACKEND_PORT" nohup python -m uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" > "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 sleep 3
 
@@ -77,7 +81,7 @@ fi
 
 # 5. 启动前端
 echo ""
-echo "🎨 步骤 4/4: 启动前端服务 (端口 3000)..."
+echo "🎨 步骤 4/4: 启动前端服务 (端口 $FRONTEND_PORT)..."
 cd "$PROJECT_DIR/frontend"
 
 # 加载 nvm
@@ -103,13 +107,13 @@ echo "✅ 所有服务启动完成！"
 echo "=========================================="
 echo ""
 echo "📊 服务状态:"
-echo "  • Nginx:   $(pgrep -f 'nginx.*8080' > /dev/null && echo '✓ 运行中' || echo '✗ 未运行')"
+echo "  • Nginx:   $(pgrep -f \"nginx.*$PUBLIC_PORT\" > /dev/null && echo '✓ 运行中' || echo '✗ 未运行')"
 echo "  • 后端:    $(pgrep -f 'uvicorn app.main:app' > /dev/null && echo '✓ 运行中' || echo '✗ 未运行')"
 echo "  • 前端:    $(pgrep -f 'next dev' > /dev/null && echo '✓ 运行中' || echo '✗ 未运行')"
 echo ""
 echo "🌍 访问地址:"
 echo "  • 公网: http://i-2.gpushare.com:35808/"
-echo "  • 本地: http://localhost:8080/"
+echo "  • 本地: http://localhost:$PUBLIC_PORT/"
 echo ""
 echo "📝 日志文件:"
 echo "  • 后端: $LOG_DIR/backend.log"

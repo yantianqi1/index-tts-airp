@@ -27,7 +27,11 @@ echo -e "${GREEN}✓ Docker 已安装${NC}"
 
 # 检查 Docker Compose
 echo "检查 Docker Compose..."
-if ! command -v docker-compose &> /dev/null; then
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD=(docker-compose)
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD=(docker compose)
+else
     echo -e "${RED}✗ Docker Compose 未安装${NC}"
     echo "请先安装 Docker Compose"
     exit 1
@@ -117,14 +121,14 @@ fi
 
 echo ""
 echo "构建并启动 Docker 容器..."
-docker-compose up -d --build
+"${COMPOSE_CMD[@]}" up -d --build
 
 echo ""
 echo "等待服务启动..."
 sleep 5
 
 # 检查服务状态
-if docker-compose ps | grep -q "Up"; then
+if "${COMPOSE_CMD[@]}" ps | grep -q "Up"; then
     echo -e "${GREEN}✓ 服务启动成功！${NC}"
     echo ""
     echo "================================"
@@ -133,8 +137,8 @@ if docker-compose ps | grep -q "Up"; then
     echo "API 地址: http://localhost:8080"
     echo "API 文档: http://localhost:8080/docs"
     echo ""
-    echo "查看日志: docker-compose logs -f"
-    echo "停止服务: docker-compose down"
+    echo "查看日志: ${COMPOSE_CMD[*]} logs -f"
+    echo "停止服务: ${COMPOSE_CMD[*]} down"
     echo ""
     
     if [ "$MODEL_EXISTS" = true ]; then
@@ -147,7 +151,7 @@ else
     echo -e "${RED}✗ 服务启动失败${NC}"
     echo ""
     echo "查看错误日志:"
-    echo "  docker-compose logs"
+    echo "  ${COMPOSE_CMD[*]} logs"
     exit 1
 fi
 

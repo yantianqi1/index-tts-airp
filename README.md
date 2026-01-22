@@ -520,6 +520,10 @@ chmod +x scripts/quick_tunnel.sh
 # 或完整配置（持久链接）
 chmod +x scripts/setup_cloudflare_tunnel.sh
 ./scripts/setup_cloudflare_tunnel.sh
+
+# 绑定自定义域名
+chmod +x scripts/bind_domain.sh
+./scripts/bind_domain.sh
 ```
 
 优点：
@@ -528,7 +532,7 @@ chmod +x scripts/setup_cloudflare_tunnel.sh
 - 支持自定义域名
 - 自动 HTTPS
 
-📖 详细配置见 [Cloudflare Tunnel 指南](docs/CLOUDFLARE_TUNNEL_REQUIREMENT.md)
+📖 详细配置见 [域名绑定指南](docs/CLOUDFLARE_DOMAIN_BINDING.md)
 
 ## 📝 开发
 

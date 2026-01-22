@@ -49,8 +49,11 @@ class TTSModelEngine:
                 
                 # 初始化 IndexTTS 模型
                 self.model = IndexTTS(
-                    config_path=str(cfg_path),
-                    device=self.device
+                    cfg_path=str(cfg_path),
+                    model_dir=str(settings.weights_dir),
+                    use_fp16=True,  # RTX 4060 Ti 支持 FP16，更快更省显存
+                    device=self.device,
+                    use_cuda_kernel=True  # 使用 CUDA 加速
                 )
                 
                 logger.info("✓ IndexTTS 模型加载成功")

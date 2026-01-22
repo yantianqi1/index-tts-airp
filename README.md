@@ -33,6 +33,19 @@
 
 **快速参考**: 查看 [参数速查表](./PARAMETERS_CHEATSHEET.md)
 
+## 📚 文档导航
+
+| 文档 | 说明 | 适合人群 |
+|------|------|---------|
+| [README.md](./README.md) | 项目介绍和快速开始 | 所有人 ⭐ |
+| [USAGE_GUIDE.md](./USAGE_GUIDE.md) | 详细使用指南 | 用户 |
+| [TTS_PARAMETERS_GUIDE.md](./TTS_PARAMETERS_GUIDE.md) | 参数完整说明 | 用户 |
+| [PARAMETERS_CHEATSHEET.md](./PARAMETERS_CHEATSHEET.md) | 参数速查表 | 用户 ⭐ |
+| [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | API 快速参考 | 开发者 |
+| [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) | 项目架构概览 | 开发者 |
+| [NODE_UPGRADE_GUIDE.md](./NODE_UPGRADE_GUIDE.md) | Node.js 升级指南 | 部署人员 |
+| [CHANGELOG.md](./CHANGELOG.md) | 版本更新记录 | 开发者 |
+
 ## 📦 快速开始
 
 ### 方式 1：直接部署（推荐，无需 Docker）

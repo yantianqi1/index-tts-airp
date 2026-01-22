@@ -46,12 +46,13 @@ git clone https://github.com/yantianqi1/index-tts-airp.git
 cd index-tts-airp
 
 # 2. 下载模型（二选一）
-# 方式 A - HuggingFace
-huggingface-cli download IndexTeam/Index-TTS-2 --local-dir weights
-
-# 方式 B - ModelScope（国内推荐）
+# 方式 A - ModelScope（国内推荐）
 pip install modelscope
-modelscope download --model IndexTeam/Index-TTS-2 --local_dir weights
+modelscope download --model IndexTeam/IndexTTS-2 --local_dir weights
+
+# 方式 B - HuggingFace
+pip install huggingface-hub
+huggingface-cli download IndexTeam/IndexTTS-2 --local-dir weights
 
 # 3. 启动服务
 docker-compose up -d
@@ -329,13 +330,19 @@ LOG_LEVEL=INFO
 **国内推荐使用魔搭（ModelScope）：**
 ```bash
 pip install modelscope
-modelscope download --model IndexTeam/Index-TTS-2 --local_dir weights
+modelscope download --model IndexTeam/IndexTTS-2 --local_dir weights
 ```
 
 **国外可使用 HuggingFace：**
 ```bash
 pip install huggingface-hub
-huggingface-cli download IndexTeam/Index-TTS-2 --local-dir weights
+huggingface-cli download IndexTeam/IndexTTS-2 --local-dir weights
+```
+
+**使用 Git（需要 Git LFS）：**
+```bash
+git lfs install
+git clone https://www.modelscope.cn/IndexTeam/IndexTTS-2.git weights
 ```
 
 ### Q: 端口被占用怎么办？

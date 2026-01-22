@@ -68,32 +68,54 @@ else
     python3 << 'PYEOF'
 from modelscope import snapshot_download
 import os
+import shutil
 
 print("开始下载 IndexTTS-2 模型...")
+print("提示: 首次下载可能需要较长时间，请耐心等待...")
 try:
+    # 正确的仓库名是 IndexTeam/IndexTTS-2（没有中间的连字符）
     model_dir = snapshot_download(
-        'IndexTeam/Index-TTS-2',
-        cache_dir='./weights'
+        'IndexTeam/IndexTTS-2',
+        cache_dir='./weights_cache'
     )
     print(f"✓ 模型已下载到: {model_dir}")
     
-    # 如果模型在子目录，移动到 weights 根目录
-    import shutil
-    if os.path.exists(os.path.join(model_dir, 'config.yaml')):
-        for item in os.listdir(model_dir):
-            src = os.path.join(model_dir, item)
-            dst = os.path.join('./weights', item)
-            if os.path.isfile(src):
-                shutil.copy2(src, dst)
-            elif os.path.isdir(src):
-                if os.path.exists(dst):
-                    shutil.rmtree(dst)
-                shutil.copytree(src, dst)
-        print("✓ 模型文件已整理")
+    # 确保 weights 目录存在
+    os.makedirs('./weights', exist_ok=True)
+    
+    # 将模型文件复制到 weights 目录
+    for item in os.listdir(model_dir):
+        src = os.path.join(model_dir, item)
+        dst = os.path.join('./weights', item)
+        
+        if os.path.exists(dst):
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            else:
+                os.remove(dst)
+        
+        if os.path.isfile(src):
+            shutil.copy2(src, dst)
+        elif os.path.isdir(src):
+            shutil.copytree(src, dst)
+    
+    print("✓ 模型文件已整理到 weights/ 目录")
+    
+    # 验证下载
+    if os.path.exists('./weights/config.yaml'):
+        print("✓ 模型下载成功！")
+    else:
+        print("⚠️  未找到 config.yaml，可能需要手动检查")
+        
 except Exception as e:
     print(f"✗ 下载失败: {e}")
     print("\n请手动下载模型:")
-    print("  modelscope download --model IndexTeam/Index-TTS-2 --local_dir weights")
+    print("  方式 1 (命令行):")
+    print("    modelscope download --model IndexTeam/IndexTTS-2 --local_dir weights")
+    print("")
+    print("  方式 2 (Git):")
+    print("    git lfs install")
+    print("    git clone https://www.modelscope.cn/IndexTeam/IndexTTS-2.git weights")
     exit(1)
 PYEOF
     

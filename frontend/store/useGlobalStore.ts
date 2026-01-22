@@ -69,7 +69,7 @@ export const useGlobalStore = create<GlobalStore>()(
       
       // Default TTS Config
       tts: {
-        baseUrl: 'http://localhost:9880',
+        baseUrl: 'http://localhost:8080',
         voice: 'girl_01',
         emotion: 'default',
         speed: 1.0,

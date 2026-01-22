@@ -5,9 +5,8 @@
 ### 1. 启动后端 TTS 服务
 
 ```bash
-# 启动 IndexTTS 服务（端口 9880）
-cd index-tts
-python -m indextts.infer_v2 --port 9880
+# 启动 IndexTTS 服务（端口 8080）
+./scripts/start_service.sh
 ```
 
 ### 2. 启动前端
@@ -30,7 +29,7 @@ npm run dev
 - Model: `qwen2.5:latest`
 
 **TTS 配置**:
-- Base URL: `http://localhost:9880`
+- Base URL: `http://localhost:8080`
 - Voice: `girl_01`
 
 点击保存即可使用。

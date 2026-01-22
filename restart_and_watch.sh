@@ -20,12 +20,28 @@ pkill -f "next dev" || true
 pkill -9 nginx || true
 sleep 3
 
-# 确保 8080 端口完全释放
+# 确保端口完全释放
+echo "🔍 检查端口占用..."
 if lsof -i :8080 > /dev/null 2>&1; then
-    echo "⚠️  端口 8080 仍被占用，强制清理..."
+    echo "⚠️  端口 8080 被占用，强制清理..."
     lsof -ti :8080 | xargs kill -9 || true
-    sleep 2
+    sleep 1
 fi
+
+if lsof -i :8888 > /dev/null 2>&1; then
+    echo "⚠️  端口 8888 被占用，强制清理..."
+    lsof -ti :8888 | xargs kill -9 || true
+    sleep 1
+fi
+
+if lsof -i :3000 > /dev/null 2>&1; then
+    echo "⚠️  端口 3000 被占用，强制清理..."
+    lsof -ti :3000 | xargs kill -9 || true
+    sleep 1
+fi
+
+echo "✓ 所有端口已清理"
+sleep 1
 
 # 2. 确保日志目录存在
 mkdir -p "$LOG_DIR"

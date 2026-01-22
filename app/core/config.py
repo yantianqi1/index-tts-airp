@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     port: int = 5050
     
     # 路径配置
-    weights_dir: Path = Path("/app/weights")
-    presets_dir: Path = Path("/app/presets")
-    logs_dir: Path = Path("/app/logs")
+    weights_dir: Path = Path("./weights")
+    presets_dir: Path = Path("./presets")
+    logs_dir: Path = Path("./logs")
     
     # 模型配置
     model_name: str = "indextts-2.0"

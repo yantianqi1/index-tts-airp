@@ -13,13 +13,14 @@ class Settings(BaseSettings):
     port: int = 5050
     
     # 路径配置
-    weights_dir: Path = Path("/root/index-tts/checkpoints")
+    weights_dir: Path = Path("./weights")
     presets_dir: Path = Path("./presets")
     logs_dir: Path = Path("./logs")
+    index_tts_repo_dir: Path = Path("./index-tts")
     
     # 模型配置
     model_name: str = "indextts-2.0"
-    device: str = "cuda"
+    device: str = "auto"
     default_voice: str = "default.wav"
     
     # 音频配置

@@ -20,6 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制应用代码
 COPY app/ ./app/
 COPY scripts/ ./scripts/
+COPY index-tts/ ./index-tts/
 
 # 创建必要的目录
 RUN mkdir -p /app/weights /app/presets /app/logs

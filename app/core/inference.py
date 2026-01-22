@@ -30,20 +30,65 @@ class TTSModelEngine:
             logger.info("模型已加载，跳过重复加载")
             return
 
+        requested_device = self.device
+        if requested_device == "auto":
+            if torch.cuda.is_available():
+                resolved_device = "cuda"
+            elif hasattr(torch, "xpu") and torch.xpu.is_available():
+                resolved_device = "xpu"
+            elif hasattr(torch, "mps") and torch.backends.mps.is_available():
+                resolved_device = "mps"
+            else:
+                resolved_device = "cpu"
+        else:
+            resolved_device = requested_device
+            if requested_device.startswith("cuda") and not torch.cuda.is_available():
+                logger.warning("CUDA 不可用，回退到 CPU")
+                resolved_device = "cpu"
+            if requested_device == "mps" and not (hasattr(torch, "mps") and torch.backends.mps.is_available()):
+                logger.warning("MPS 不可用，回退到 CPU")
+                resolved_device = "cpu"
+            if requested_device == "xpu" and not (hasattr(torch, "xpu") and torch.xpu.is_available()):
+                logger.warning("XPU 不可用，回退到 CPU")
+                resolved_device = "cpu"
+
+        if resolved_device != self.device:
+            logger.info(f"设备调整: {self.device} -> {resolved_device}")
+        self.device = resolved_device
+
         logger.info(f"开始加载 IndexTTS 模型到 {self.device}...")
 
         try:
             # 尝试导入 IndexTTS
             try:
-                # 强制使用官方仓库代码，避免加载封装项目里旧包
-                repo_root = Path("/root/index-tts")
-                if (repo_root / "indextts").is_dir():
+                repo_candidates = []
+                env_repo = os.environ.get("INDEX_TTS_REPO_DIR")
+                if env_repo:
+                    repo_candidates.append(Path(env_repo))
+                repo_candidates.append(settings.index_tts_repo_dir)
+                try:
+                    repo_candidates.append(Path(__file__).resolve().parents[2] / "index-tts")
+                except Exception:
+                    pass
+                repo_candidates.append(Path.cwd() / "index-tts")
+                repo_candidates.append(Path("/root/index-tts"))
+
+                repo_root = None
+                for candidate in repo_candidates:
+                    try:
+                        if (candidate / "indextts").is_dir():
+                            repo_root = candidate
+                            break
+                    except Exception:
+                        continue
+
+                if repo_root:
                     repo_root_str = str(repo_root)
                     if repo_root_str not in sys.path:
                         sys.path.insert(0, repo_root_str)
                     logger.info(f"使用 IndexTTS 仓库路径: {repo_root}")
                 else:
-                    logger.warning(f"未找到 IndexTTS 仓库: {repo_root}")
+                    logger.warning("未找到 IndexTTS 仓库，将尝试使用已安装的 indextts 包")
 
                 # 如果需要使用 HF 镜像
                 if "HF_ENDPOINT" not in os.environ:

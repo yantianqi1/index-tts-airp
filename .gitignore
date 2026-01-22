@@ -23,6 +23,7 @@ presets/*.wav
 !presets/default.wav
 logs/
 .env
+index-tts/
 
 # Docker
 *.log

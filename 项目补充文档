@@ -1,0 +1,172 @@
+这是一个**项目开发文档增补版 (Addendum)**，专门针对**“智能情感控制”**和**“目录结构重构”**这两个新需求。
+
+请将这份文档连同之前的 PRD 一起发送给你的 AI 编程助手。
+
+---
+
+# 项目开发文档增补：智能情感控制模块 (Smart Sentiment Addendum)
+
+## 1. 变更概述
+
+本增补文档旨在原有的 IndexTTS API 基础上，增加**基于 LLM 的智能情感分析**功能，并重构音色库的文件存储结构。系统将支持通过 OpenAI 兼容接口（如 Gemini Flash）自动分析文本情感，并调用对应的音频提示文件。
+
+---
+
+## 2. 目录结构重构 (Refactoring)
+
+为了支持多情感，我们需要将扁平的文件结构改为**层级结构**。
+
+**旧结构：** `/app/presets/voice_id.wav`
+**新结构：** `/app/presets/{voice_id}/{emotion}.wav`
+
+**具体要求：**
+
+1. **根目录：** 每个 `voice_id` 对应一个文件夹。
+2. **默认文件：** 每个文件夹内**必须**包含 `default.wav`，作为兜底音色。
+3. **情感文件：** 其他文件名即为情感 ID（如 `happy.wav`, `sad.wav`, `angry.wav`）。
+4. **元数据（可选）：** 文件夹内可包含 `config.json` 用于描述角色信息。
+
+**示例结构：**
+
+```text
+/app/presets/
+├── girl_01/
+│   ├── default.wav   (必需)
+│   ├── happy.wav
+│   ├── sad.wav
+│   └── angry.wav
+└── uncle_li/
+    ├── default.wav
+    └── serious.wav
+
+```
+
+---
+
+## 3. 环境变量配置 (Environment Variables)
+
+在 `app/core/config.py` 和 `.env` 文件中增加以下配置，用于连接 Gemini Flash (或其他 OpenAI 兼容模型)。
+
+```env
+# --- 智能情感分析配置 ---
+# 开启/关闭智能分析功能 (True/False)
+ENABLE_SMART_SENTIMENT=True
+
+# LLM API 配置 (OpenAI 兼容格式)
+SENTIMENT_LLM_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
+SENTIMENT_LLM_API_KEY="sk-proj-xxxxxxxx..."
+SENTIMENT_LLM_MODEL="gemini-1.5-flash"
+
+# 支持的情感标签白名单 (必须与 .wav 文件名一致)
+# 如果 LLM 返回该列表以外的词，强制回退到 default
+SENTIMENT_LABELS=["happy", "sad", "angry", "fear", "surprise", "neutral"]
+
+```
+
+---
+
+## 4. 依赖更新 (Dependencies)
+
+在 `requirements.txt` 中增加：
+
+```text
+openai>=1.0.0  # 用于调用 LLM
+
+```
+
+---
+
+## 5. 功能逻辑实现细节
+
+请在开发时重点实现以下两个模块的新逻辑：
+
+### 5.1. 情感分析服务 (`app/services/sentiment.py`)
+
+创建一个新的服务模块，负责调用 LLM。
+
+* **Prompt 设计：**
+> "你是一个情感分析助手。请分析以下文本的情感，并严格从以下列表中选择一个最匹配的标签返回：['happy', 'sad', 'angry', 'fear', 'neutral']。
+> **规则：** 仅返回标签单词，不要包含任何 markdown 格式、标点符号或解释性文字。
+> 待分析文本：{text}"
+
+
+* **客户端初始化：** 使用 `openai.AsyncOpenAI`，读取环境变量中的 URL 和 Key。
+* **容错处理：**
+* 如果 LLM 请求超时或报错，捕获异常并返回 `"default"`。
+* 如果 LLM 返回的标签不在白名单内，返回 `"default"`。
+
+
+
+### 5.2. 推理引擎路径选择 (`app/core/inference.py`)
+
+修改 `generate` 函数的逻辑，支持“自动”与“手动”两种模式。
+
+**伪代码逻辑：**
+
+```python
+async def get_prompt_path(voice_id: str, emotion_mode: str, text: str) -> str:
+    """
+    决定最终使用的 wav 文件路径
+    :param emotion_mode: 用户传入的参数，可能是 "auto", "happy", "default" 等
+    """
+    target_emotion = "default"
+
+    # 1. 智能分析分支
+    if emotion_mode == "auto":
+        if settings.ENABLE_SMART_SENTIMENT:
+            # 调用 LLM 分析文本
+            target_emotion = await sentiment_service.analyze(text)
+        else:
+            target_emotion = "default"
+    else:
+        # 2. 手动指定分支
+        target_emotion = emotion_mode
+
+    # 3. 路径查找与降级逻辑 (Fallback)
+    # 尝试找: presets/{voice_id}/{target_emotion}.wav
+    base_dir = Path(f"/app/presets/{voice_id}")
+    file_path = base_dir / f"{target_emotion}.wav"
+
+    if not file_path.exists():
+        # 如果找不到 happy.wav，尝试回退到 default.wav
+        file_path = base_dir / "default.wav"
+    
+    if not file_path.exists():
+        raise FileNotFoundError(f"Voice ID {voice_id} not found or corrupted.")
+
+    return str(file_path)
+
+```
+
+---
+
+## 6. API 接口更新 (`app/models/schemas.py`)
+
+请求体数据模型需要更新，增加 `emotion` 字段。
+
+```python
+class SpeechRequest(BaseModel):
+    model: str = "indextts-2.0"
+    input: str
+    voice: str
+    
+    # 新增 emotion 字段
+    # 允许值: "auto" (智能模式), "default", "happy", "sad" 等
+    emotion: str = "default" 
+    
+    response_format: str = "wav"
+    speed: float = 1.0
+
+```
+
+---
+
+## 7. 给 AI 的补充指令 (Copy paste this to your AI)
+
+> "请在之前的项目基础上执行此增补文档。
+> 1. 首先更新 `requirements.txt` 和 `app/core/config.py` 以支持 OpenAI 兼容的环境变量配置。
+> 2. 编写 `app/services/sentiment.py`，使用 `AsyncOpenAI` 客户端实现简单的文本分类，确保 Prompt 能够限制输出格式。
+> 3. 修改 `app/core/inference.py` 中的音频加载逻辑，实现从 `presets/{voice}/{emotion}.wav` 读取文件的逻辑，并必须包含 '文件不存在则回退到 default.wav' 的健壮性处理。
+> 4. 更新 API 入口，处理 `emotion='auto'` 的情况，先调用情感分析服务，拿到结果后再去调用 TTS 推理。"
+> 
+>

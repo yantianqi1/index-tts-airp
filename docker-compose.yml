@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  voicenexus:
+    build: .
+    container_name: voicenexus-api
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./weights:/app/weights
+      - ./presets:/app/presets
+      - ./logs:/app/logs
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

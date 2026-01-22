@@ -1,0 +1,19 @@
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pydantic==2.5.3
+pydantic-settings==2.1.0
+torch==2.1.0
+torchaudio==2.1.0
+numpy==1.24.3
+soundfile==0.12.1
+librosa==0.10.1
+ffmpeg-python==0.2.0
+aiofiles==23.2.1
+openai>=1.0.0
+
+# IndexTTS2 相关依赖（如果直接安装 indextts 包，这些会自动安装）
+# 如果使用 pip install -e /path/to/index-tts，则不需要单独列出
+# transformers>=4.30.0
+# accelerate>=0.20.0
+# einops>=0.6.1

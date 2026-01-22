@@ -21,13 +21,33 @@ export default function ChatInterface() {
 
   // 初始化音频管理器
   useEffect(() => {
-    audioManagerRef.current = new AudioQueueManager(tts.apiUrl, tts.voice);
+    audioManagerRef.current = new AudioQueueManager({
+      apiUrl: tts.apiUrl,
+      voice: tts.voice,
+      emotion: tts.emotion,
+      speed: tts.speed,
+      responseFormat: tts.responseFormat,
+      temperature: tts.temperature,
+      topP: tts.topP,
+      topK: tts.topK,
+      repetitionPenalty: tts.repetitionPenalty,
+    });
   }, []);
 
   // 更新音频管理器配置
   useEffect(() => {
-    audioManagerRef.current?.updateConfig(tts.apiUrl, tts.voice);
-  }, [tts.apiUrl, tts.voice]);
+    audioManagerRef.current?.updateConfig({
+      apiUrl: tts.apiUrl,
+      voice: tts.voice,
+      emotion: tts.emotion,
+      speed: tts.speed,
+      responseFormat: tts.responseFormat,
+      temperature: tts.temperature,
+      topP: tts.topP,
+      topK: tts.topK,
+      repetitionPenalty: tts.repetitionPenalty,
+    });
+  }, [tts]);
 
   // 自动滚动到底部
   useEffect(() => {

@@ -14,6 +14,12 @@ class TTSRequest(BaseModel):
     )
     response_format: Literal["wav", "mp3"] = Field(default="wav", description="输出音频格式")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="语速，范围0.5-2.0")
+    
+    # 高级参数（可选）
+    temperature: Optional[float] = Field(default=1.0, ge=0.1, le=2.0, description="温度，控制生成的随机性")
+    top_p: Optional[float] = Field(default=0.8, ge=0.0, le=1.0, description="核采样，影响音色多样性")
+    top_k: Optional[int] = Field(default=20, ge=1, le=100, description="Top-K采样，控制候选token数量")
+    repetition_penalty: Optional[float] = Field(default=1.0, ge=0.1, le=2.0, description="重复惩罚")
 
 
 class VoiceInfo(BaseModel):

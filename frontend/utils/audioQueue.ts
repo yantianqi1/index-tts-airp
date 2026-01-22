@@ -3,21 +3,30 @@ interface AudioTask {
   id: string;
 }
 
+export interface TTSParams {
+  apiUrl: string;
+  voice: string;
+  emotion: string;
+  speed: number;
+  responseFormat: 'wav' | 'mp3';
+  temperature: number;
+  topP: number;
+  topK: number;
+  repetitionPenalty: number;
+}
+
 export class AudioQueueManager {
   private queue: AudioTask[] = [];
   private isPlaying: boolean = false;
   private currentAudio: HTMLAudioElement | null = null;
-  private ttsApiUrl: string;
-  private voice: string;
+  private ttsParams: TTSParams;
 
-  constructor(ttsApiUrl: string, voice: string) {
-    this.ttsApiUrl = ttsApiUrl;
-    this.voice = voice;
+  constructor(ttsParams: TTSParams) {
+    this.ttsParams = ttsParams;
   }
 
-  updateConfig(ttsApiUrl: string, voice: string) {
-    this.ttsApiUrl = ttsApiUrl;
-    this.voice = voice;
+  updateConfig(ttsParams: TTSParams) {
+    this.ttsParams = ttsParams;
   }
 
   async enqueue(text: string) {
@@ -56,15 +65,21 @@ export class AudioQueueManager {
   }
 
   private async synthesizeSpeech(text: string): Promise<Blob> {
-    const response = await fetch(this.ttsApiUrl, {
+    const response = await fetch(this.ttsParams.apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         input: text,
-        voice: this.voice,
-        response_format: 'wav',
+        voice: this.ttsParams.voice,
+        emotion: this.ttsParams.emotion,
+        speed: this.ttsParams.speed,
+        response_format: this.ttsParams.responseFormat,
+        temperature: this.ttsParams.temperature,
+        top_p: this.ttsParams.topP,
+        top_k: this.ttsParams.topK,
+        repetition_penalty: this.ttsParams.repetitionPenalty,
       }),
     });
 

@@ -180,7 +180,17 @@ class TTSModelEngine:
             f"  - {old_structure_path}"
         )
 
-    async def generate(self, text: str, voice_id: str = "default", emotion: str = "default", speed: float = 1.0) -> np.ndarray:
+    async def generate(
+        self, 
+        text: str, 
+        voice_id: str = "default", 
+        emotion: str = "default", 
+        speed: float = 1.0,
+        temperature: float = 1.0,
+        top_p: float = 0.8,
+        top_k: int = 20,
+        repetition_penalty: float = 1.0
+    ) -> np.ndarray:
         """生成语音（异步，带显存锁保护）"""
         if not self.is_loaded:
             raise RuntimeError("模型未加载，请先调用 load_model()")
@@ -193,17 +203,39 @@ class TTSModelEngine:
         ref_audio_path = self._get_reference_audio_path(voice_id, emotion)
 
         async with self.inference_lock:
-            logger.info(f"开始推理: text_len={len(text)}, voice={voice_id}, emotion={emotion}, speed={speed}")
+            logger.info(
+                f"开始推理: text_len={len(text)}, voice={voice_id}, emotion={emotion}, "
+                f"speed={speed}, temp={temperature}, top_p={top_p}, top_k={top_k}, rep_penalty={repetition_penalty}"
+            )
             try:
                 loop = asyncio.get_event_loop()
-                audio_data = await loop.run_in_executor(None, self._sync_generate, text, str(ref_audio_path), speed)
+                audio_data = await loop.run_in_executor(
+                    None, 
+                    self._sync_generate, 
+                    text, 
+                    str(ref_audio_path), 
+                    speed,
+                    temperature,
+                    top_p,
+                    top_k,
+                    repetition_penalty
+                )
                 logger.info(f"✓ 推理完成，音频长度: {len(audio_data)} samples")
                 return audio_data
             except Exception as e:
                 logger.error(f"✗ 推理失败: {e}")
                 raise RuntimeError(f"语音合成失败: {e}")
 
-    def _sync_generate(self, text: str, ref_audio_path: str, speed: float) -> np.ndarray:
+    def _sync_generate(
+        self, 
+        text: str, 
+        ref_audio_path: str, 
+        speed: float,
+        temperature: float,
+        top_p: float,
+        top_k: int,
+        repetition_penalty: float
+    ) -> np.ndarray:
         """同步推理函数（在线程池中执行）"""
         with torch.no_grad():
             if isinstance(self.model, MockIndexTTS):
@@ -214,10 +246,10 @@ class TTSModelEngine:
                     spk_audio_prompt=ref_audio_path,
                     text=text,
                     output_path=None,
-                    top_p=0.8,
-                    top_k=20,
-                    temperature=1.0,
-                    repetition_penalty=1.0
+                    top_p=top_p,
+                    top_k=top_k,
+                    temperature=temperature,
+                    repetition_penalty=repetition_penalty
                 )
 
                 sample_rate = settings.sample_rate

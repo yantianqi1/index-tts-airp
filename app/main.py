@@ -145,7 +145,7 @@ async def get_voices():
 @app.post("/v1/audio/speech")
 async def create_speech(request: TTSRequest):
     """
-    语音合成接口（支持智能情感分析）
+    语音合成接口（支持智能情感分析和高级参数）
     
     接收文本、音色和情感参数，返回音频流
     
@@ -153,6 +153,12 @@ async def create_speech(request: TTSRequest):
     - "auto": 自动分析文本情感（需要配置 LLM）
     - "default": 使用默认音色
     - 其他值: 指定具体情感（如 "happy", "sad" 等）
+    
+    高级参数：
+    - temperature: 控制生成的随机性 (0.1-2.0)
+    - top_p: 核采样，影响音色多样性 (0.0-1.0)
+    - top_k: Top-K采样，控制候选token数量 (1-100)
+    - repetition_penalty: 重复惩罚 (0.1-2.0)
     """
     try:
         # 生成音频
@@ -160,7 +166,11 @@ async def create_speech(request: TTSRequest):
             text=request.input,
             voice_id=request.voice,
             emotion=request.emotion,
-            speed=request.speed
+            speed=request.speed,
+            temperature=request.temperature or 1.0,
+            top_p=request.top_p or 0.8,
+            top_k=request.top_k or 20,
+            repetition_penalty=request.repetition_penalty or 1.0
         )
         
         # 转换为 WAV 格式

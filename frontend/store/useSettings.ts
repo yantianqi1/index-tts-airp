@@ -10,6 +10,14 @@ export interface LLMConfig {
 export interface TTSConfig {
   apiUrl: string;
   voice: string;
+  emotion: string;
+  speed: number;
+  responseFormat: 'wav' | 'mp3';
+  // 高级参数
+  temperature: number;
+  topP: number;
+  topK: number;
+  repetitionPenalty: number;
 }
 
 interface SettingsState {
@@ -30,8 +38,16 @@ export const useSettings = create<SettingsState>()(
         model: 'gpt-4',
       },
       tts: {
-        apiUrl: 'http://localhost:8080/v1/audio/speech',
-        voice: 'girl_01',
+        apiUrl: '/api/v1/audio/speech',  // 使用相对路径，通过 Nginx 代理
+        voice: 'default',
+        emotion: 'default',
+        speed: 1.0,
+        responseFormat: 'wav',
+        // 高级参数默认值
+        temperature: 1.0,
+        topP: 0.8,
+        topK: 20,
+        repetitionPenalty: 1.0,
       },
       isConfigured: false,
       setLLMConfig: (config) =>

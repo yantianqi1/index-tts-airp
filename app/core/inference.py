@@ -1,6 +1,9 @@
 """IndexTTS 核心推理引擎"""
 import asyncio
+import inspect
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import Optional
 import torch
@@ -14,50 +17,73 @@ logger = logging.getLogger(__name__)
 
 class TTSModelEngine:
     """TTS 模型推理引擎（单例模式）"""
-    
+
     def __init__(self):
         self.model = None
         self.device = settings.device
         self.inference_lock = asyncio.Lock()  # 显存保护锁
         self.is_loaded = False
-        
+
     def load_model(self):
         """加载模型到 GPU"""
         if self.is_loaded:
             logger.info("模型已加载，跳过重复加载")
             return
-            
+
         logger.info(f"开始加载 IndexTTS 模型到 {self.device}...")
-        
+
         try:
             # 尝试导入 IndexTTS
             try:
-                from indextts.infer import IndexTTS
-                
+                # 强制使用官方仓库代码，避免加载封装项目里旧包
+                repo_root = Path("/root/index-tts")
+                if (repo_root / "indextts").is_dir():
+                    repo_root_str = str(repo_root)
+                    if repo_root_str not in sys.path:
+                        sys.path.insert(0, repo_root_str)
+                    logger.info(f"使用 IndexTTS 仓库路径: {repo_root}")
+                else:
+                    logger.warning(f"未找到 IndexTTS 仓库: {repo_root}")
+
+                # 如果需要使用 HF 镜像
+                if "HF_ENDPOINT" not in os.environ:
+                    os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
+                from indextts.infer_v2 import IndexTTS2
+
+                try:
+                    logger.info(f"IndexTTS2 导入路径: {inspect.getfile(IndexTTS2)}")
+                except Exception:
+                    pass
+
                 # 构建配置文件路径
                 cfg_path = settings.weights_dir / "config.yaml"
-                
+
                 # 检查配置文件是否存在
                 if not cfg_path.exists():
                     logger.warning(f"配置文件不存在: {cfg_path}")
                     raise FileNotFoundError(f"模型配置文件不存在: {cfg_path}")
-                
+
                 # 加载 IndexTTS 模型
                 logger.info(f"加载配置: {cfg_path}")
                 logger.info(f"模型目录: {settings.weights_dir}")
                 logger.info(f"使用设备: {self.device}")
-                
+
                 # 初始化 IndexTTS 模型
-                self.model = IndexTTS(
-                    cfg_path=str(cfg_path),
-                    model_dir=str(settings.weights_dir),
-                    use_fp16=True,  # RTX 4060 Ti 支持 FP16，更快更省显存
-                    device=self.device,
-                    use_cuda_kernel=True  # 使用 CUDA 加速
-                )
-                
+                use_cuda_kernel = self.device.startswith("cuda")
+                kwargs = {
+                    "cfg_path": str(cfg_path),
+                    "model_dir": str(settings.weights_dir),
+                    "use_fp16": use_cuda_kernel,
+                    "use_cuda_kernel": use_cuda_kernel,
+                    "use_deepspeed": False,
+                }
+                if "device" in inspect.signature(IndexTTS2).parameters:
+                    kwargs["device"] = self.device
+                self.model = IndexTTS2(**kwargs)
+
                 logger.info("✓ IndexTTS 模型加载成功")
-                
+
             except ImportError as ie:
                 logger.warning(f"无法导入 IndexTTS: {ie}")
                 logger.warning("回退到 Mock 模式（仅用于测试）")
@@ -66,164 +92,130 @@ class TTSModelEngine:
                 logger.error(f"IndexTTS 加载失败: {e}")
                 logger.warning("回退到 Mock 模式（仅用于测试）")
                 self.model = MockIndexTTS(self.device)
-            
+
             self.is_loaded = True
             logger.info("✓ 模型加载完成")
-            
+
         except Exception as e:
             logger.error(f"✗ 模型加载失败: {e}")
             raise RuntimeError(f"模型加载失败: {e}")
-    
+
     def _get_reference_audio_path(self, voice_id: str, emotion: str = "default") -> Path:
         """
         获取参考音频路径（支持新的层级结构）
-        
         新结构: presets/{voice_id}/{emotion}.wav
-        降级逻辑: 
-        1. 尝试 presets/{voice_id}/{emotion}.wav
-        2. 回退到 presets/{voice_id}/default.wav
-        3. 如果都不存在，抛出异常
-        
-        Args:
-            voice_id: 音色ID
-            emotion: 情感标签
-            
-        Returns:
-            音频文件路径
         """
-        # 移除可能的 .wav 后缀
         voice_id = voice_id.replace(".wav", "")
         emotion = emotion.replace(".wav", "")
-        
-        # 构建目标路径（新结构）
+
         voice_dir = settings.presets_dir / voice_id
         target_path = voice_dir / f"{emotion}.wav"
-        
-        # 尝试找指定情感的音频
+
         if target_path.exists():
             logger.info(f"使用音色: {voice_id}/{emotion}")
             return target_path
-        
-        # 回退到 default.wav
+
         default_path = voice_dir / "default.wav"
         if default_path.exists():
             logger.warning(f"情感 {emotion} 不存在，使用 {voice_id}/default")
             return default_path
-        
-        # 兼容旧的扁平结构（向后兼容）
+
         old_structure_path = settings.presets_dir / f"{voice_id}.wav"
         if old_structure_path.exists():
             logger.warning(f"使用旧结构音色: {voice_id}.wav（建议迁移到新结构）")
             return old_structure_path
-        
-        # 都不存在，抛出异常
+
         raise FileNotFoundError(
             f"音色 {voice_id} 不存在。请确保以下路径之一存在：\n"
             f"  - {target_path}\n"
             f"  - {default_path}\n"
             f"  - {old_structure_path}"
         )
-    
-    async def generate(
-        self,
-        text: str,
-        voice_id: str = "default",
-        emotion: str = "default",
-        speed: float = 1.0
-    ) -> np.ndarray:
-        """
-        生成语音（异步，带显存锁保护）
-        
-        Args:
-            text: 待合成的文本
-            voice_id: 音色ID
-            emotion: 情感标签（支持 "auto" 自动分析）
-            speed: 语速
-            
-        Returns:
-            音频数据 (numpy array)
-        """
+
+    async def generate(self, text: str, voice_id: str = "default", emotion: str = "default", speed: float = 1.0) -> np.ndarray:
+        """生成语音（异步，带显存锁保护）"""
         if not self.is_loaded:
             raise RuntimeError("模型未加载，请先调用 load_model()")
-        
-        # 如果是自动模式，先进行情感分析
+
         if emotion == "auto":
             from app.services.sentiment import sentiment_analyzer
             emotion = await sentiment_analyzer.analyze(text)
             logger.info(f"智能情感分析结果: {emotion}")
-        
-        # 获取参考音频路径
+
         ref_audio_path = self._get_reference_audio_path(voice_id, emotion)
-        
-        # 使用锁保护 GPU 推理，防止并发导致 OOM
+
         async with self.inference_lock:
             logger.info(f"开始推理: text_len={len(text)}, voice={voice_id}, emotion={emotion}, speed={speed}")
-            
             try:
-                # 在线程池中执行同步推理（避免阻塞事件循环）
                 loop = asyncio.get_event_loop()
-                audio_data = await loop.run_in_executor(
-                    None,
-                    self._sync_generate,
-                    text,
-                    str(ref_audio_path),
-                    speed
-                )
-                
+                audio_data = await loop.run_in_executor(None, self._sync_generate, text, str(ref_audio_path), speed)
                 logger.info(f"✓ 推理完成，音频长度: {len(audio_data)} samples")
                 return audio_data
-                
             except Exception as e:
                 logger.error(f"✗ 推理失败: {e}")
                 raise RuntimeError(f"语音合成失败: {e}")
-    
+
     def _sync_generate(self, text: str, ref_audio_path: str, speed: float) -> np.ndarray:
         """同步推理函数（在线程池中执行）"""
         with torch.no_grad():
-            # 检查是否为 Mock 模型
             if isinstance(self.model, MockIndexTTS):
                 return self.model.synthesize(text, ref_audio_path, speed)
-            
-            # 使用真实的 IndexTTS 模型
+
             try:
-                # 调用 IndexTTS 推理
-                # IndexTTS.infer() 方法返回音频数据
-                audio_data = self.model.infer(
+                result = self.model.infer(
+                    spk_audio_prompt=ref_audio_path,
                     text=text,
-                    prompt_audio_path=ref_audio_path,
-                    prompt_text="",  # 可选：参考音频的文本
+                    output_path=None,
                     top_p=0.8,
                     top_k=20,
                     temperature=1.0,
                     repetition_penalty=1.0
                 )
-                
-                # audio_data 应该是 numpy array 或 torch tensor
+
+                sample_rate = settings.sample_rate
+                audio_data = result
+                if isinstance(result, tuple) and len(result) == 2:
+                    sample_rate, audio_data = result
+                elif isinstance(result, str):
+                    audio_data, sample_rate = sf.read(result)
+                elif result is None:
+                    raise RuntimeError("模型未返回音频数据")
+
                 if isinstance(audio_data, torch.Tensor):
                     audio_data = audio_data.cpu().numpy()
-                
-                # 如果需要调整语速
-                if speed != 1.0:
-                    sample_rate = settings.sample_rate
-                    audio_data = self._adjust_speed(audio_data, sample_rate, speed)
-                
-                # 确保返回单声道音频
+
+                if isinstance(audio_data, np.ndarray):
+                    if audio_data.dtype in (np.int16, np.int32):
+                        max_val = np.iinfo(audio_data.dtype).max
+                        audio_data = audio_data.astype(np.float32) / max_val
+                    else:
+                        audio_data = audio_data.astype(np.float32, copy=False)
+
                 if len(audio_data.shape) > 1:
-                    audio_data = audio_data.mean(axis=1)
-                
-                return audio_data.astype(np.float32)
-                
+                    if audio_data.shape[0] == 1:
+                        audio_data = audio_data.squeeze(0)
+                    elif audio_data.shape[1] == 1:
+                        audio_data = audio_data.squeeze(1)
+                    else:
+                        audio_data = audio_data.mean(axis=1)
+
+                if speed != 1.0:
+                    audio_data = self._adjust_speed(audio_data, sample_rate, speed)
+
+                if sample_rate != settings.sample_rate:
+                    audio_data = self._resample_audio(audio_data, orig_sr=sample_rate, target_sr=settings.sample_rate)
+
+                return audio_data.astype(np.float32, copy=False)
+
             except Exception as e:
                 logger.error(f"IndexTTS 推理失败: {e}")
                 raise
-    
+
     def _adjust_speed(self, audio: np.ndarray, sample_rate: int, speed: float) -> np.ndarray:
-        """调整音频速度（简单实现）"""
+        """调整音频速度"""
         try:
             import librosa
-            # 使用 librosa 的时间拉伸功能
-            audio_stretched = librosa.effects.time_stretch(audio, rate=speed)
-            return audio_stretched
+            return librosa.effects.time_stretch(audio, rate=speed)
         except ImportError:
             logger.warning("librosa 未安装，无法调整语速")
             return audio
@@ -231,24 +223,32 @@ class TTSModelEngine:
             logger.warning(f"语速调整失败: {e}，返回原始音频")
             return audio
 
+    def _resample_audio(self, audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+        """重采样音频"""
+        try:
+            import librosa
+            return librosa.resample(audio, orig_sr=orig_sr, target_sr=target_sr)
+        except ImportError:
+            logger.warning("librosa 未安装，无法重采样")
+            return audio
+        except Exception as e:
+            logger.warning(f"重采样失败: {e}，返回原始音频")
+            return audio
+
 
 class MockIndexTTS:
     """Mock 模型（用于测试，实际使用时需替换）"""
-    
+
     def __init__(self, device: str):
         self.device = device
         logger.warning("⚠️  使用 Mock 模型，请替换为真实的 IndexTTS 实现")
-    
+
     def synthesize(self, text: str, ref_audio: str, speed: float) -> np.ndarray:
-        """生成假音频数据"""
         import time
-        time.sleep(0.5)  # 模拟推理耗时
-        
-        # 生成 1 秒的静音音频
-        duration = len(text) * 0.1  # 根据文本长度估算时长
+        time.sleep(0.5)
+        duration = len(text) * 0.1
         samples = int(settings.sample_rate * duration)
         return np.zeros(samples, dtype=np.float32)
 
 
-# 全局单例
 tts_engine = TTSModelEngine()

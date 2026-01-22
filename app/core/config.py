@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     port: int = 5050
     
     # 路径配置
-    weights_dir: Path = Path("./weights")
+    weights_dir: Path = Path("/root/index-tts/checkpoints")
     presets_dir: Path = Path("./presets")
     logs_dir: Path = Path("./logs")
     

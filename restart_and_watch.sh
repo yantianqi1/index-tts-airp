@@ -17,8 +17,15 @@ echo ""
 echo "📛 步骤 1/4: 停止现有服务..."
 pkill -f "uvicorn app.main:app" || true
 pkill -f "next dev" || true
-pkill -f "nginx.*8080" || true
-sleep 2
+pkill -9 nginx || true
+sleep 3
+
+# 确保 8080 端口完全释放
+if lsof -i :8080 > /dev/null 2>&1; then
+    echo "⚠️  端口 8080 仍被占用，强制清理..."
+    lsof -ti :8080 | xargs kill -9 || true
+    sleep 2
+fi
 
 # 2. 确保日志目录存在
 mkdir -p "$LOG_DIR"

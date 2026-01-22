@@ -125,6 +125,9 @@ class TTSModelEngine:
                 }
                 if "device" in inspect.signature(IndexTTS2).parameters:
                     kwargs["device"] = self.device
+                
+                logger.info(f"开始初始化 IndexTTS2，参数: {kwargs}")
+                logger.info("这可能需要 1-3 分钟，请耐心等待...")
                 self.model = IndexTTS2(**kwargs)
 
                 logger.info("✓ IndexTTS 模型加载成功")

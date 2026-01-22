@@ -119,7 +119,7 @@ if cloudflared tunnel route dns $TUNNEL_NAME $DOMAIN; then
         cat << EOF
 ingress:
   - hostname: $DOMAIN
-    service: http://localhost:5050
+    service: http://localhost:8080
   - service: http_status:404
 EOF
         echo "================================"
@@ -142,7 +142,7 @@ credentials-file: $HOME/.cloudflared/$TUNNEL_ID.json
 
 ingress:
   - hostname: $DOMAIN
-    service: http://localhost:5050
+    service: http://localhost:8080
   - service: http_status:404
 EOF
             echo -e "${GREEN}✓ 配置文件已更新${NC}"

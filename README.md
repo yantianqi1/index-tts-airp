@@ -35,8 +35,8 @@ chmod +x scripts/deploy_direct.sh
 - 启动服务
 
 服务启动后访问：
-- API 地址: `http://localhost:5050`
-- API 文档: `http://localhost:5050/docs`
+- API 地址: `http://localhost:8080`
+- API 文档: `http://localhost:8080/docs`
 
 ### 方式 2：Docker 部署
 
@@ -66,7 +66,7 @@ docker-compose logs -f
 ### 1. 获取音色列表
 
 ```bash
-curl http://localhost:5050/v1/voices
+curl http://localhost:8080/v1/voices
 ```
 
 响应示例：
@@ -86,7 +86,7 @@ curl http://localhost:5050/v1/voices
 ### 2. 语音合成
 
 ```bash
-curl -X POST http://localhost:5050/v1/audio/speech \
+curl -X POST http://localhost:8080/v1/audio/speech \
   -H "Content-Type: application/json" \
   -d '{
     "model": "indextts-2.0",
@@ -107,7 +107,7 @@ curl -X POST http://localhost:5050/v1/audio/speech \
 ### 3. 上传音色
 
 ```bash
-curl -X POST http://localhost:5050/v1/voices/upload \
+curl -X POST http://localhost:8080/v1/voices/upload \
   -F "file=@your_audio.wav" \
   -F "voice_id=my_voice" \
   -F "emotion=happy"
@@ -120,7 +120,7 @@ import requests
 
 # 语音合成
 response = requests.post(
-    "http://localhost:5050/v1/audio/speech",
+    "http://localhost:8080/v1/audio/speech",
     json={
         "model": "indextts-2.0",
         "input": "你好，世界！",
@@ -179,7 +179,7 @@ SENTIMENT_GEMINI_MODEL=gemini-2.0-flash-exp
 
 ```python
 response = requests.post(
-    "http://localhost:5050/v1/audio/speech",
+    "http://localhost:8080/v1/audio/speech",
     json={
         "input": "今天天气真好，心情特别愉快！",
         "voice": "girl_01",
@@ -278,7 +278,7 @@ cp your_happy_audio.wav presets/my_voice/happy.wav
 
 **方式 2：API 上传**
 ```bash
-curl -X POST http://localhost:5050/v1/voices/upload \
+curl -X POST http://localhost:8080/v1/voices/upload \
   -F "file=@audio.wav" \
   -F "voice_id=my_voice" \
   -F "emotion=default"
@@ -366,7 +366,7 @@ docker-compose up -d --build
 
 ```env
 # 服务配置
-PORT=5050
+PORT=8080
 HOST=0.0.0.0
 
 # 模型配置
@@ -409,10 +409,10 @@ git clone https://www.modelscope.cn/IndexTeam/IndexTTS-2.git weights
 
 ```bash
 # 查看占用端口的进程
-lsof -i:5050
+lsof -i:8080
 
 # 停止进程
-kill $(lsof -t -i:5050)
+kill $(lsof -t -i:8080)
 
 # 或修改 .env 中的 PORT
 ```
@@ -483,7 +483,7 @@ tail -f logs/app.log | grep ERROR
 # 启动 4 个 worker 进程
 python3 -m uvicorn app.main:app \
   --host 0.0.0.0 \
-  --port 5050 \
+  --port 8080 \
   --workers 4
 ```
 
@@ -491,7 +491,7 @@ python3 -m uvicorn app.main:app \
 
 ```nginx
 upstream indextts {
-    server localhost:5050;
+    server localhost:8080;
 }
 
 server {

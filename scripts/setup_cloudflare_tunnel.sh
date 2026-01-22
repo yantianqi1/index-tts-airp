@@ -52,7 +52,7 @@ credentials-file: $HOME/.cloudflared/$TUNNEL_ID.json
 
 ingress:
   - hostname: "*"
-    service: http://localhost:5050
+    service: http://localhost:8080
   - service: http_status:404
 EOF
 
@@ -67,7 +67,7 @@ echo ""
 # 启动隧道
 echo "🚀 启动隧道..."
 echo "你可以选择："
-echo "1. 临时测试（无需域名）: cloudflared tunnel --url http://localhost:5050"
+echo "1. 临时测试（无需域名）: cloudflared tunnel --url http://localhost:8080"
 echo "2. 持久运行: cloudflared tunnel run $TUNNEL_NAME"
 echo ""
 
@@ -85,5 +85,5 @@ chmod +x scripts/start_tunnel.sh
 echo "✅ 配置完成！"
 echo ""
 echo "📌 快速启动命令："
-echo "  临时测试: cloudflared tunnel --url http://localhost:5050"
+echo "  临时测试: cloudflared tunnel --url http://localhost:8080"
 echo "  持久运行: ./scripts/start_tunnel.sh"

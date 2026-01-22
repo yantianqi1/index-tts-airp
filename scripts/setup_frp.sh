@@ -30,8 +30,8 @@ token = YOUR_TOKEN
 [indextts-api]
 type = tcp
 local_ip = 127.0.0.1
-local_port = 5050
-remote_port = 5050
+local_port = 8080
+remote_port = 8080
 EOF
 
 echo "✅ FRP 客户端已配置"

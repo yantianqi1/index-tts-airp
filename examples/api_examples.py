@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 # API 基础 URL
-BASE_URL = "http://localhost:5050"
+BASE_URL = "http://localhost:8080"
 
 
 class VoiceNexusClient:

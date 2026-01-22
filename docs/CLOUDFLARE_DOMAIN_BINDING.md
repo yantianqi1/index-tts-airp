@@ -82,7 +82,7 @@ curl https://api.yourdomain.com
    - **Subdomain**: 子域名（如 `api` 或 `tts`）
    - **Domain**: 选择你的域名（如 `yourdomain.com`）
    - **Type**: 选择 `HTTP`
-   - **URL**: 填写 `localhost:5050`（或 `localhost:8080`）
+   - **URL**: 填写 `localhost:8080`（或 `localhost:8080`）
 
 4. 点击 **"Save hostname"**
 
@@ -119,7 +119,7 @@ credentials-file: /root/.cloudflared/abc123-def456-ghi789.json
 ingress:
   # 绑定特定域名
   - hostname: api.example.com
-    service: http://localhost:5050
+    service: http://localhost:8080
   # 其他域名返回 404
   - service: http_status:404
 ```
@@ -157,15 +157,15 @@ credentials-file: /root/.cloudflared/abc123-def456-ghi789.json
 ingress:
   # 主域名
   - hostname: api.example.com
-    service: http://localhost:5050
+    service: http://localhost:8080
   
   # 备用域名
   - hostname: tts.example.com
-    service: http://localhost:5050
+    service: http://localhost:8080
   
   # 国际域名
   - hostname: api.example.net
-    service: http://localhost:5050
+    service: http://localhost:8080
   
   # 默认
   - service: http_status:404
@@ -182,7 +182,7 @@ credentials-file: /root/.cloudflared/abc123-def456-ghi789.json
 ingress:
   # API 服务
   - hostname: api.example.com
-    service: http://localhost:5050
+    service: http://localhost:8080
   
   # 管理后台
   - hostname: admin.example.com
@@ -386,7 +386,7 @@ nslookup api.example.com 1.1.1.1
 **解决**:
 ```bash
 # 1. 检查本地服务
-curl http://localhost:5050
+curl http://localhost:8080
 
 # 2. 检查隧道状态
 cloudflared tunnel info <TUNNEL_NAME>
@@ -415,12 +415,12 @@ cat ~/.cloudflared/config.yml
 # 错误示例:
 ingress:
   - hostname: "*.example.com"  # 通配符可能不工作
-    service: http://localhost:5050
+    service: http://localhost:8080
 
 # 正确示例:
 ingress:
   - hostname: api.example.com  # 精确匹配
-    service: http://localhost:5050
+    service: http://localhost:8080
   - service: http_status:404   # 默认返回 404
 
 # 3. 重启隧道
@@ -439,9 +439,9 @@ nano ~/.cloudflared/config.yml
 # 添加所有域名
 ingress:
   - hostname: api.example.com
-    service: http://localhost:5050
+    service: http://localhost:8080
   - hostname: tts.example.com
-    service: http://localhost:5050
+    service: http://localhost:8080
   - service: http_status:404
 
 # 重启隧道
@@ -485,7 +485,7 @@ credentials-file: /root/.cloudflared/abc123-def456-ghi789.json
 
 ingress:
   - hostname: api.example.com
-    service: http://localhost:5050
+    service: http://localhost:8080
     # 添加访问策略
     originRequest:
       noTLSVerify: false
@@ -524,7 +524,7 @@ Cloudflare Tunnel 默认支持 HTTP/2，无需额外配置。
 ```yaml
 ingress:
   - hostname: api.example.com
-    service: http://localhost:5050
+    service: http://localhost:8080
     originRequest:
       # 禁用缓存（API 服务）
       disableChunkedEncoding: false

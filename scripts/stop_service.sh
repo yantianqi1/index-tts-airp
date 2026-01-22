@@ -17,7 +17,7 @@ if [ -f "logs/app.pid" ]; then
     fi
 else
     # 通过端口查找
-    PID=$(lsof -t -i:5050)
+    PID=$(lsof -t -i:8080)
     if [ ! -z "$PID" ]; then
         kill $PID
         echo "✓ 服务已停止 (PID: $PID)"

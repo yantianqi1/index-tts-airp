@@ -167,7 +167,7 @@ if [ "$MODEL_EXISTS" = false ]; then
 fi
 
 # 检查端口是否被占用
-PORT=5050
+PORT=8080
 if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 ; then
     echo -e "${YELLOW}⚠️  端口 $PORT 已被占用${NC}"
     echo "正在停止旧进程..."

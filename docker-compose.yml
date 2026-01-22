@@ -5,7 +5,7 @@ services:
     build: .
     container_name: voicenexus-api
     ports:
-      - "5050:5050"
+      - "8080:8080"
     volumes:
       - ./weights:/app/weights
       - ./presets:/app/presets

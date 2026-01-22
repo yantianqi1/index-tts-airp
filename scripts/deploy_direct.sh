@@ -46,7 +46,8 @@ echo -e "${GREEN}✓ 目录创建完成${NC}"
 # 安装依赖
 echo ""
 echo "安装 Python 依赖..."
-pip install -r requirements.txt -q
+echo "使用阿里云镜像源加速..."
+pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 echo -e "${GREEN}✓ 依赖安装完成${NC}"
 
 # 检查模型文件
@@ -61,7 +62,7 @@ else
     echo "正在下载模型（使用魔搭 ModelScope）..."
     
     # 安装 modelscope
-    pip install modelscope -q
+    pip install modelscope -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
     
     # 下载模型
     python3 << 'PYEOF'

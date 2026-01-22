@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { Save, RefreshCw, CheckCircle, XCircle, Wifi, WifiOff } from 'lucide-react';
 import { useGlobalStore } from '@/store/useGlobalStore';
 import { fetchModels } from '@/utils/llmApi';
-import { fetchVoices } from '@/utils/ttsApi';
+import { fetchVoices, testTTSConnection } from '@/utils/ttsApi';
 
 export default function SettingsPage() {
   const { llm, tts, setLLM, setTTS, models, setModels, voices, setVoices } = useGlobalStore();
@@ -16,6 +16,8 @@ export default function SettingsPage() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setLocalLLM(llm);
@@ -56,16 +58,32 @@ export default function SettingsPage() {
   const handleLoadVoices = async () => {
     setIsLoadingVoices(true);
     try {
-      const data = await fetchVoices(localTTS.baseUrl);
+      const data = await fetchVoices();
       if (data.voices) {
         setVoices(data.voices);
         alert(`成功加载 ${data.voices.length} 个音色`);
       }
     } catch (error) {
       console.error('Load voices error:', error);
-      alert('加载音色失败，请检查配置');
+      alert('加载音色失败，请检查后端服务是否正常运行');
     } finally {
       setIsLoadingVoices(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setIsTestingConnection(true);
+    setConnectionStatus(null);
+    try {
+      const result = await testTTSConnection();
+      setConnectionStatus(result);
+    } catch (error) {
+      setConnectionStatus({
+        success: false,
+        message: '测试失败: ' + (error instanceof Error ? error.message : '未知错误')
+      });
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
@@ -199,40 +217,73 @@ export default function SettingsPage() {
         {/* TTS Configuration */}
         <section className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-white">语音合成配置</h2>
-            <button
-              onClick={handleLoadVoices}
-              disabled={isLoadingVoices}
-              className="
-                px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg
-                disabled:opacity-50 disabled:cursor-not-allowed
-                transition-all duration-200 flex items-center gap-2 cursor-pointer
-              "
-            >
-              <RefreshCw size={14} className={isLoadingVoices ? 'animate-spin' : ''} />
-              {isLoadingVoices ? '加载中...' : '获取音色列表'}
-            </button>
+            <div>
+              <h2 className="text-lg font-semibold text-white">语音合成配置</h2>
+              <p className="text-sm text-slate-400 mt-1">后端地址: /api (自动)</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleTestConnection}
+                disabled={isTestingConnection}
+                className="
+                  px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-all duration-200 flex items-center gap-2 cursor-pointer
+                "
+              >
+                {isTestingConnection ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    测试中...
+                  </>
+                ) : connectionStatus?.success ? (
+                  <>
+                    <Wifi size={14} />
+                    测试连接
+                  </>
+                ) : (
+                  <>
+                    <WifiOff size={14} />
+                    测试连接
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleLoadVoices}
+                disabled={isLoadingVoices}
+                className="
+                  px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-all duration-200 flex items-center gap-2 cursor-pointer
+                "
+              >
+                <RefreshCw size={14} className={isLoadingVoices ? 'animate-spin' : ''} />
+                {isLoadingVoices ? '加载中...' : '获取音色列表'}
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                TTS Base URL
-              </label>
-              <input
-                type="text"
-                value={localTTS.baseUrl}
-                onChange={(e) => setLocalTTS({ ...localTTS, baseUrl: e.target.value })}
-                placeholder="http://localhost:9880"
-                className="
-                  w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg
-                  focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                  outline-none text-slate-100 placeholder-slate-500
-                  transition-all duration-200
-                "
-              />
+          {/* Connection Status */}
+          {connectionStatus && (
+            <div className={`mb-4 p-3 rounded-lg flex items-start gap-2 ${
+              connectionStatus.success 
+                ? 'bg-green-500/10 border border-green-500/20' 
+                : 'bg-red-500/10 border border-red-500/20'
+            }`}>
+              {connectionStatus.success ? (
+                <CheckCircle size={18} className="text-green-400 mt-0.5 flex-shrink-0" />
+              ) : (
+                <XCircle size={18} className="text-red-400 mt-0.5 flex-shrink-0" />
+              )}
+              <p className={`text-sm ${
+                connectionStatus.success ? 'text-green-300' : 'text-red-300'
+              }`}>
+                {connectionStatus.message}
+              </p>
             </div>
+          )}
 
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 默认音色

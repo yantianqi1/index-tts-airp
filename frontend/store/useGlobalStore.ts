@@ -8,7 +8,6 @@ export interface LLMConfig {
 }
 
 export interface TTSConfig {
-  baseUrl: string;
   voice: string;
   emotion: string;
   speed: number;
@@ -18,6 +17,9 @@ export interface TTSConfig {
   repetitionPenalty: number;
   responseFormat: string;
 }
+
+// TTS API 基础路径（固定使用相对路径）
+export const TTS_BASE_URL = '/api';
 
 export interface Voice {
   id: string;
@@ -69,7 +71,6 @@ export const useGlobalStore = create<GlobalStore>()(
       
       // Default TTS Config
       tts: {
-        baseUrl: '/api',
         voice: 'girl_01',
         emotion: 'default',
         speed: 1.0,
@@ -106,7 +107,6 @@ export const useGlobalStore = create<GlobalStore>()(
           state.llm.baseUrl &&
           state.llm.apiKey &&
           state.llm.model &&
-          state.tts.baseUrl &&
           state.tts.voice
         );
       },

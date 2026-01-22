@@ -1,4 +1,4 @@
-import { TTSConfig } from '@/store/useGlobalStore';
+import { TTSConfig, TTS_BASE_URL } from '@/store/useGlobalStore';
 
 export interface TTSRequest {
   input: string;
@@ -24,7 +24,7 @@ export async function generateSpeech(
   text: string,
   options: TTSSaveOptions = {}
 ): Promise<Blob> {
-  const response = await fetch(`${config.baseUrl}/v1/audio/speech`, {
+  const response = await fetch(`${TTS_BASE_URL}/v1/audio/speech`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -51,12 +51,36 @@ export async function generateSpeech(
   return await response.blob();
 }
 
-export async function fetchVoices(baseUrl: string) {
-  const response = await fetch(`${baseUrl}/v1/voices`);
+export async function fetchVoices() {
+  const response = await fetch(`${TTS_BASE_URL}/v1/voices`);
   
   if (!response.ok) {
     throw new Error(`Failed to fetch voices: ${response.statusText}`);
   }
 
   return await response.json();
+}
+
+export async function testTTSConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(`${TTS_BASE_URL}/`);
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `连接失败: HTTP ${response.status}`
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      message: `连接成功! 服务: ${data.service || 'Unknown'}, 版本: ${data.version || 'Unknown'}`
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `连接失败: ${error instanceof Error ? error.message : '未知错误'}`
+    };
+  }
 }

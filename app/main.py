@@ -1,8 +1,9 @@
 """FastAPI 主应用入口"""
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -30,6 +31,30 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_save_name(name: str) -> str:
+    name = name.strip()
+    if not name:
+        return ""
+    name = name.replace("/", "_").replace("\\", "_")
+    name = re.sub(r"[\x00-\x1f\x7f]", "", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
+
+
+def _build_save_path(save_name: str, response_format: str) -> Optional[Path]:
+    safe_name = _sanitize_save_name(save_name)
+    if not safe_name:
+        return None
+    base_name = safe_name
+    lower_name = base_name.lower()
+    if lower_name.endswith(".wav") or lower_name.endswith(".mp3"):
+        base_name = base_name[:-4].strip().rstrip(".")
+    if not base_name:
+        return None
+    filename = f"{base_name}.{response_format}"
+    return settings.generated_audio_dir / Path(filename).name
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
@@ -42,6 +67,7 @@ async def lifespan(app: FastAPI):
     settings.presets_dir.mkdir(parents=True, exist_ok=True)
     settings.weights_dir.mkdir(parents=True, exist_ok=True)
     settings.logs_dir.mkdir(parents=True, exist_ok=True)
+    settings.generated_audio_dir.mkdir(parents=True, exist_ok=True)
     
     # 加载模型
     try:
@@ -184,6 +210,20 @@ async def create_speech(request: TTSRequest):
             audio_bytes = wav_bytes
             media_type = "audio/wav"
         
+        # 持久化保存（可选）
+        if request.save_audio:
+            if not request.save_name:
+                raise HTTPException(status_code=400, detail="save_audio 为 true 时必须提供 save_name")
+            save_path = _build_save_path(request.save_name, request.response_format)
+            if not save_path:
+                raise HTTPException(status_code=400, detail="save_name 无效")
+            if save_path.exists():
+                raise HTTPException(status_code=409, detail="文件名已存在，请更换名称")
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(save_path, "wb") as f:
+                f.write(audio_bytes)
+            logger.info(f"✓ 生成音频已保存: {save_path}")
+
         # 返回流式响应
         return StreamingResponse(
             iter([audio_bytes]),

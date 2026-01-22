@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     presets_dir: Path = Path("./presets")
     logs_dir: Path = Path("./logs")
     index_tts_repo_dir: Path = Path("./index-tts")
+    generated_audio_dir: Path = Path("./generated_audio")
     
     # 模型配置
     model_name: str = "indextts-2.0"

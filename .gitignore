@@ -22,6 +22,8 @@ weights/
 presets/*.wav
 !presets/default.wav
 logs/
+generated_audio/*
+!generated_audio/.gitkeep
 .env
 index-tts/
 

@@ -14,6 +14,8 @@ class TTSRequest(BaseModel):
     )
     response_format: Literal["wav", "mp3"] = Field(default="wav", description="输出音频格式")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="语速，范围0.5-2.0")
+    save_audio: bool = Field(default=False, description="是否保存生成音频到本地仓库目录")
+    save_name: Optional[str] = Field(default=None, description="保存的音频文件名（不含扩展名）")
     
     # 高级参数（可选）
     temperature: Optional[float] = Field(default=1.0, ge=0.1, le=2.0, description="温度，控制生成的随机性")

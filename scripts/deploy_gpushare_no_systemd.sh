@@ -13,7 +13,7 @@ echo "=========================================="
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 PUBLIC_PORT="${PUBLIC_PORT:-8080}"
-BACKEND_PORT="${BACKEND_PORT:-8888}"
+BACKEND_PORT="${BACKEND_PORT:-8081}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 
 echo ""

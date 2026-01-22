@@ -10,11 +10,19 @@ export interface TTSRequest {
   top_k?: number;
   repetition_penalty?: number;
   response_format?: string;
+  save_audio?: boolean;
+  save_name?: string;
+}
+
+export interface TTSSaveOptions {
+  saveAudio?: boolean;
+  saveName?: string;
 }
 
 export async function generateSpeech(
   config: TTSConfig,
-  text: string
+  text: string,
+  options: TTSSaveOptions = {}
 ): Promise<Blob> {
   const response = await fetch(`${config.baseUrl}/v1/audio/speech`, {
     method: 'POST',
@@ -31,6 +39,8 @@ export async function generateSpeech(
       top_k: config.topK,
       repetition_penalty: config.repetitionPenalty,
       response_format: config.responseFormat,
+      save_audio: options.saveAudio,
+      save_name: options.saveName,
     } as TTSRequest),
   });
 

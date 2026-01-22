@@ -33,6 +33,8 @@ export default function StudioPage() {
   const [localEmotion, setLocalEmotion] = useState(tts.emotion);
   const [localVoice, setLocalVoice] = useState(tts.voice);
   const [localSpeed, setLocalSpeed] = useState(tts.speed);
+  const [saveToRepo, setSaveToRepo] = useState(false);
+  const [saveName, setSaveName] = useState('');
 
   // Load voices on mount
   useEffect(() => {
@@ -55,6 +57,11 @@ export default function StudioPage() {
       return;
     }
 
+    if (saveToRepo && !saveName.trim()) {
+      alert('请填写保存的音频名称');
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
@@ -67,7 +74,8 @@ export default function StudioPage() {
 
       const blob = await generateSpeech(
         { ...tts, voice: localVoice, emotion: localEmotion, speed: localSpeed },
-        text
+        text,
+        saveToRepo ? { saveAudio: true, saveName: saveName.trim() } : undefined
       );
 
       const audio: GeneratedAudio = {
@@ -197,6 +205,36 @@ export default function StudioPage() {
                   [&::-webkit-slider-thumb]:cursor-pointer
                 "
               />
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={saveToRepo}
+                  onChange={(e) => setSaveToRepo(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded focus:ring-blue-500"
+                />
+                保存生成音频到仓库
+              </label>
+              <div>
+                <input
+                  type="text"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  disabled={!saveToRepo}
+                  placeholder="自定义音频名称（无需扩展名）"
+                  className="
+                    w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg
+                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                    outline-none text-slate-100 placeholder-slate-500
+                    transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+                  "
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  保存位置：/generated_audio
+                </p>
+              </div>
             </div>
           </div>
 

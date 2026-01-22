@@ -190,13 +190,61 @@ response = requests.post(
 
 ## 🌐 显卡平台部署
 
-在 AutoDL、恒源云等平台部署？查看详细指南：
+### 🎯 选择合适的部署方式
+
+| 方式 | 难度 | 速度 | 适用场景 |
+|------|------|------|---------|
+| **公网暴露** | ⭐ 最简单 | ⚡⚡⚡ 最快 | 平台支持公网暴露 |
+| **Cloudflare Tunnel** | ⭐⭐ 简单 | ⚡⚡ 较快 | 通用方案 |
+| **传统部署** | ⭐⭐⭐ 中等 | ⚡ 一般 | 本地开发 |
+
+📖 **[部署方式详细对比](docs/DEPLOYMENT_COMPARISON.md)** - 帮助你选择最适合的方案
+
+### 方式 1：公网暴露（推荐）
+
+如果你的显卡平台支持公网暴露服务（如 GPUShare），使用一键部署：
+
+```bash
+# 克隆项目
+git clone https://github.com/yantianqi1/index-tts-airp.git
+cd index-tts-airp
+
+# 一键部署（自动配置 8080 端口）
+chmod +x scripts/deploy_gpushare.sh
+./scripts/deploy_gpushare.sh
+```
+
+服务会自动：
+- 监听 `0.0.0.0:8080`（平台要求）
+- 在平台控制台获取公网访问地址
+- 自动支持 HTTPS
+
+📖 **[快速开始](QUICK_START_GPUSHARE.md)** | **[详细指南](docs/GPUSHARE_PUBLIC_DEPLOY.md)**
+
+### 方式 2：内网穿透
+
+如果平台不支持公网暴露，使用 Cloudflare Tunnel：
+
+```bash
+# 快速临时隧道
+chmod +x scripts/quick_tunnel.sh
+./scripts/quick_tunnel.sh
+
+# 或持久化配置
+chmod +x scripts/setup_cloudflare_tunnel.sh
+./scripts/setup_cloudflare_tunnel.sh
+```
+
+📖 **[Cloudflare Tunnel 配置指南](docs/CLOUDFLARE_TUNNEL_REQUIREMENT.md)**
+
+### 方式 3：传统部署
+
+在 AutoDL、恒源云等平台传统部署：
 
 📖 **[显卡租赁平台部署指南](docs/GPU_PLATFORM_DEPLOY.md)**
 
 包含：
 - 完整部署流程
-- 内网穿透配置
 - 性能优化建议
 - 常见问题解决
 
@@ -458,11 +506,11 @@ server {
 }
 ```
 
-### 内网穿透（显卡租赁平台必备）
+### 内网穿透（备用方案）
 
-如果你在 AutoDL、恒源云等没有公网 IP 的平台上部署，需要使用内网穿透：
+如果平台不支持公网暴露，可以使用内网穿透：
 
-#### 方案 1：Cloudflare Tunnel（推荐，免费）
+#### Cloudflare Tunnel（推荐，免费）
 
 ```bash
 # 快速启动（临时链接）
@@ -480,30 +528,7 @@ chmod +x scripts/setup_cloudflare_tunnel.sh
 - 支持自定义域名
 - 自动 HTTPS
 
-#### 方案 2：FRP（需要自己的服务器）
-
-```bash
-chmod +x scripts/setup_frp.sh
-./scripts/setup_frp.sh
-# 编辑 frp/frpc.ini 填入服务器信息
-./frp/frpc -c frp/frpc.ini
-```
-
-#### 方案 3：NATAPP（国内免费）
-
-```bash
-chmod +x scripts/setup_natapp.sh
-./scripts/setup_natapp.sh
-# 访问 https://natapp.cn/ 获取 token
-./natapp -authtoken=YOUR_TOKEN -proto=tcp -lport=5050
-```
-
-#### 方案 4：显卡平台自带端口映射
-
-部分平台提供端口映射功能：
-- AutoDL：容器设置 → 自定义服务 → 添加端口 5050
-- 恒源云：实例详情 → 端口映射 → 添加映射
-- 矩池云：容器管理 → 端口转发
+📖 详细配置见 [Cloudflare Tunnel 指南](docs/CLOUDFLARE_TUNNEL_REQUIREMENT.md)
 
 ## 📝 开发
 

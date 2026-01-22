@@ -30,36 +30,37 @@ class TTSModelEngine:
         logger.info(f"开始加载 IndexTTS 模型到 {self.device}...")
         
         try:
-            # 尝试导入 IndexTTS2
+            # 尝试导入 IndexTTS
             try:
-                from indextts.infer_v2 import IndexTTS2
+                from indextts.infer import IndexTTS
                 
                 # 构建配置文件路径
                 cfg_path = settings.weights_dir / "config.yaml"
-                model_dir = str(settings.weights_dir)
                 
                 # 检查配置文件是否存在
                 if not cfg_path.exists():
-                    logger.warning(f"配置文件不存在: {cfg_path}，尝试使用默认路径")
-                    cfg_path = "checkpoints/config.yaml"
-                    model_dir = "checkpoints"
+                    logger.warning(f"配置文件不存在: {cfg_path}")
+                    raise FileNotFoundError(f"模型配置文件不存在: {cfg_path}")
                 
-                # 加载 IndexTTS2 模型
+                # 加载 IndexTTS 模型
                 logger.info(f"加载配置: {cfg_path}")
-                logger.info(f"模型目录: {model_dir}")
+                logger.info(f"模型目录: {settings.weights_dir}")
+                logger.info(f"使用设备: {self.device}")
                 
-                self.model = IndexTTS2(
-                    cfg_path=str(cfg_path),
-                    model_dir=model_dir,
-                    use_fp16=(self.device == "cuda"),  # GPU 时使用 FP16 节省显存
-                    use_cuda_kernel=False,  # 可选：启用 CUDA 加速
-                    use_deepspeed=False     # 可选：启用 DeepSpeed 加速
+                # 初始化 IndexTTS 模型
+                self.model = IndexTTS(
+                    config_path=str(cfg_path),
+                    device=self.device
                 )
                 
-                logger.info("✓ IndexTTS2 模型加载成功")
+                logger.info("✓ IndexTTS 模型加载成功")
                 
             except ImportError as ie:
-                logger.warning(f"无法导入 IndexTTS2: {ie}")
+                logger.warning(f"无法导入 IndexTTS: {ie}")
+                logger.warning("回退到 Mock 模式（仅用于测试）")
+                self.model = MockIndexTTS(self.device)
+            except Exception as e:
+                logger.error(f"IndexTTS 加载失败: {e}")
                 logger.warning("回退到 Mock 模式（仅用于测试）")
                 self.model = MockIndexTTS(self.device)
             
@@ -180,34 +181,27 @@ class TTSModelEngine:
             if isinstance(self.model, MockIndexTTS):
                 return self.model.synthesize(text, ref_audio_path, speed)
             
-            # 使用真实的 IndexTTS2 模型
+            # 使用真实的 IndexTTS 模型
             try:
-                # 生成临时输出文件路径
-                import tempfile
-                import os
-                
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-                    output_path = tmp_file.name
-                
-                # 调用 IndexTTS2 推理
-                # 注意：IndexTTS2 的 speed 参数可能需要通过其他方式控制
-                # 这里我们使用基础的语音克隆功能
-                self.model.infer(
-                    spk_audio_prompt=ref_audio_path,  # 音色参考音频
-                    text=text,                         # 待合成文本
-                    output_path=output_path,           # 输出路径
-                    use_random=False,                  # 不使用随机性
-                    verbose=False                      # 不输出详细日志
+                # 调用 IndexTTS 推理
+                # IndexTTS.infer() 方法返回音频数据
+                audio_data = self.model.infer(
+                    text=text,
+                    prompt_audio_path=ref_audio_path,
+                    prompt_text="",  # 可选：参考音频的文本
+                    top_p=0.8,
+                    top_k=20,
+                    temperature=1.0,
+                    repetition_penalty=1.0
                 )
                 
-                # 读取生成的音频文件
-                audio_data, sample_rate = sf.read(output_path)
+                # audio_data 应该是 numpy array 或 torch tensor
+                if isinstance(audio_data, torch.Tensor):
+                    audio_data = audio_data.cpu().numpy()
                 
-                # 删除临时文件
-                os.unlink(output_path)
-                
-                # 如果需要调整语速，可以使用音频处理库
+                # 如果需要调整语速
                 if speed != 1.0:
+                    sample_rate = settings.sample_rate
                     audio_data = self._adjust_speed(audio_data, sample_rate, speed)
                 
                 # 确保返回单声道音频
@@ -217,7 +211,7 @@ class TTSModelEngine:
                 return audio_data.astype(np.float32)
                 
             except Exception as e:
-                logger.error(f"IndexTTS2 推理失败: {e}")
+                logger.error(f"IndexTTS 推理失败: {e}")
                 raise
     
     def _adjust_speed(self, audio: np.ndarray, sample_rate: int, speed: float) -> np.ndarray:

@@ -510,6 +510,7 @@ show_project_info() {
     fi
 }
 
+
 # 17. 一条龙重启
 full_restart() {
     echo ""
@@ -518,9 +519,35 @@ full_restart() {
     echo -e "${RED}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    # Step 1: 停止现有服务
-    echo -e "${PURPLE}[1/6] 停止现有服务${NC}"
-    stop_frontend
+    # Step 1: 强制停止所有相关进程
+    echo -e "${PURPLE}[1/6] 强制停止所有相关进程${NC}"
+
+    # 停止端口上的进程
+    local pids=$(lsof -ti:$PROD_PORT 2>/dev/null)
+    if [ -n "$pids" ]; then
+        echo "$pids" | xargs kill -9 2>/dev/null
+        print_success "已强制停止端口 $PROD_PORT 上的进程"
+    fi
+
+    # 停止所有 node/next 相关进程
+    pkill -9 -f "next dev" 2>/dev/null
+    pkill -9 -f "next start" 2>/dev/null
+    pkill -9 -f "next-server" 2>/dev/null
+
+    # 清理 PID 文件
+    rm -f "$PID_FILE"
+
+    # 等待进程完全退出
+    sleep 2
+
+    # 再次检查并强制清理
+    pids=$(lsof -ti:$PROD_PORT 2>/dev/null)
+    if [ -n "$pids" ]; then
+        echo "$pids" | xargs kill -9 2>/dev/null
+        sleep 1
+    fi
+
+    print_success "进程清理完成"
     echo ""
 
     # Step 2: 清理缓存
@@ -569,17 +596,25 @@ full_restart() {
     print_success "构建完成"
     echo ""
 
-    # Step 6: 确保端口被释放并启动
+    # Step 6: 最终确保端口空闲并启动
     echo -e "${PURPLE}[6/6] 启动生产服务器${NC}"
 
-    # 再次确保端口被释放
-    local pids=$(lsof -ti:$PROD_PORT 2>/dev/null)
+    # 最后一次强制清理端口
+    pids=$(lsof -ti:$PROD_PORT 2>/dev/null)
     if [ -n "$pids" ]; then
-        print_warning "端口 $PROD_PORT 仍被占用，强制释放..."
+        print_warning "端口 $PROD_PORT 仍被占用，最终强制释放..."
         echo "$pids" | xargs kill -9 2>/dev/null
-        sleep 1
+        sleep 2
     fi
 
+    # 验证端口已释放
+    if check_port $PROD_PORT; then
+        print_error "端口 $PROD_PORT 无法释放，请手动检查"
+        print_info "尝试运行: lsof -i:$PROD_PORT"
+        return 1
+    fi
+
+    print_success "端口 $PROD_PORT 已就绪"
     print_info "服务器地址: http://localhost:$PROD_PORT"
     print_info "按 Ctrl+C 停止服务器"
     echo ""

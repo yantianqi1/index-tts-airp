@@ -114,3 +114,20 @@ export async function testTTSConnection(baseUrl?: string): Promise<{ success: bo
     };
   }
 }
+
+export interface CharacterInfo {
+  id: string;
+  name: string;
+  voice: string | null;
+  system_prompt: string;
+}
+
+export async function fetchCharacters(baseUrl?: string): Promise<{ characters: CharacterInfo[] }> {
+  const response = await fetch(buildUrl(baseUrl, '/v1/characters'));
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch characters: ${response.statusText}`);
+  }
+
+  return await response.json();
+}

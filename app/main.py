@@ -1,6 +1,7 @@
 """FastAPI 主应用入口"""
 import logging
 import re
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Optional
@@ -19,7 +20,9 @@ from app.models.schemas import (
     VoiceInfo,
     UploadResponse,
     AudioRepositoryResponse,
-    AudioRepositoryItem
+    AudioRepositoryItem,
+    CharacterInfo,
+    CharactersResponse
 )
 from app.utils.audio import (
     save_audio_to_wav,
@@ -72,6 +75,7 @@ async def lifespan(app: FastAPI):
     settings.weights_dir.mkdir(parents=True, exist_ok=True)
     settings.logs_dir.mkdir(parents=True, exist_ok=True)
     settings.generated_audio_dir.mkdir(parents=True, exist_ok=True)
+    settings.char_dir.mkdir(parents=True, exist_ok=True)
     
     # 加载模型
     try:
@@ -354,6 +358,67 @@ async def upload_voice(
             success=False,
             message=f"上传失败: {str(e)}"
         )
+
+
+@app.get("/v1/characters", response_model=CharactersResponse)
+async def get_characters():
+    """
+    获取可用角色列表
+
+    扫描 char 目录下的所有角色文件夹
+    每个角色文件夹包含：
+    - wav 音频文件（音色）
+    - config.json（角色配置，包含系统提示词）
+    """
+    try:
+        characters = []
+
+        if not settings.char_dir.exists():
+            logger.warning(f"char 目录不存在: {settings.char_dir}")
+            return CharactersResponse(characters=[])
+
+        for char_dir in settings.char_dir.iterdir():
+            if not char_dir.is_dir():
+                continue
+
+            char_id = char_dir.name
+            voice_file = None
+            system_prompt = ""
+
+            # 查找 wav 音频文件
+            wav_files = list(char_dir.glob("*.wav")) + list(char_dir.glob("*.WAV"))
+            if wav_files:
+                voice_file = wav_files[0].name
+
+            # 读取 config.json
+            config_path = char_dir / "config.json"
+            if config_path.exists():
+                try:
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        config_data = json.load(f)
+                        system_prompt = config_data.get("system_prompt", "")
+                except Exception as e:
+                    logger.warning(f"读取角色配置失败 {char_id}: {e}")
+
+            characters.append(
+                CharacterInfo(
+                    id=char_id,
+                    name=char_id,
+                    voice=voice_file,
+                    system_prompt=system_prompt
+                )
+            )
+
+        logger.info(f"找到 {len(characters)} 个角色")
+        return CharactersResponse(characters=characters)
+
+    except Exception as e:
+        logger.error(f"获取角色列表失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 提供角色音频的静态访问
+app.mount("/char_audio", StaticFiles(directory=str(settings.char_dir), check_dir=False), name="char_audio")
 
 
 if __name__ == "__main__":

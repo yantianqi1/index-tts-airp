@@ -134,7 +134,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h2 className="text-base sm:text-lg font-semibold text-slate-800">语音合成配置</h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate max-w-[200px] sm:max-w-none">后端: {localTTS.baseUrl || "/api"}</p>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">配置语音合成参数</p>
               </div>
             </div>
             <div className="flex gap-2">

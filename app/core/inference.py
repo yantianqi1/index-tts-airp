@@ -150,11 +150,30 @@ class TTSModelEngine:
 
     def _get_reference_audio_path(self, voice_id: str, emotion: str = "default") -> Path:
         """
-        获取参考音频路径（支持新的层级结构）
+        获取参考音频路径（支持新的层级结构和角色音色）
         新结构: presets/{voice_id}/{emotion}.wav
+        角色音色: char/{char_id}/{voice_file}.wav
         """
         voice_id = voice_id.replace(".wav", "")
         emotion = emotion.replace(".wav", "")
+
+        # 检查是否是角色音色路径 (格式: char/{char_id}/{voice_name})
+        if voice_id.startswith("char/"):
+            parts = voice_id.split("/")
+            if len(parts) >= 3:
+                # char/{char_id}/{voice_name}
+                char_id = parts[1]
+                voice_name = parts[2]
+                char_audio_path = settings.char_dir / char_id / f"{voice_name}.wav"
+                if char_audio_path.exists():
+                    logger.info(f"使用角色音色: {char_id}/{voice_name}")
+                    return char_audio_path
+                # 尝试大写后缀
+                char_audio_path_upper = settings.char_dir / char_id / f"{voice_name}.WAV"
+                if char_audio_path_upper.exists():
+                    logger.info(f"使用角色音色: {char_id}/{voice_name}")
+                    return char_audio_path_upper
+                raise FileNotFoundError(f"角色音色不存在: {char_audio_path}")
 
         voice_dir = settings.presets_dir / voice_id
         target_path = voice_dir / f"{emotion}.wav"
@@ -163,15 +182,33 @@ class TTSModelEngine:
             logger.info(f"使用音色: {voice_id}/{emotion}")
             return target_path
 
+        # 尝试大写后缀
+        target_path_upper = voice_dir / f"{emotion}.WAV"
+        if target_path_upper.exists():
+            logger.info(f"使用音色: {voice_id}/{emotion}")
+            return target_path_upper
+
         default_path = voice_dir / "default.wav"
         if default_path.exists():
             logger.warning(f"情感 {emotion} 不存在，使用 {voice_id}/default")
             return default_path
 
+        # 尝试大写后缀
+        default_path_upper = voice_dir / "default.WAV"
+        if default_path_upper.exists():
+            logger.warning(f"情感 {emotion} 不存在，使用 {voice_id}/default")
+            return default_path_upper
+
         old_structure_path = settings.presets_dir / f"{voice_id}.wav"
         if old_structure_path.exists():
             logger.warning(f"使用旧结构音色: {voice_id}.wav（建议迁移到新结构）")
             return old_structure_path
+
+        # 尝试大写后缀
+        old_structure_path_upper = settings.presets_dir / f"{voice_id}.WAV"
+        if old_structure_path_upper.exists():
+            logger.warning(f"使用旧结构音色: {voice_id}.WAV（建议迁移到新结构）")
+            return old_structure_path_upper
 
         raise FileNotFoundError(
             f"音色 {voice_id} 不存在。请确保以下路径之一存在：\n"

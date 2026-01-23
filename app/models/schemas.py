@@ -55,3 +55,16 @@ class AudioRepositoryItem(BaseModel):
 
 class AudioRepositoryResponse(BaseModel):
     items: list[AudioRepositoryItem]
+
+
+class CharacterInfo(BaseModel):
+    """角色信息模型"""
+    id: str = Field(..., description="角色ID（文件夹名）")
+    name: str = Field(..., description="显示名称（文件夹名）")
+    voice: Optional[str] = Field(default=None, description="关联的音色文件名")
+    system_prompt: str = Field(default="", description="角色专属系统提示词")
+
+
+class CharactersResponse(BaseModel):
+    """角色列表响应模型"""
+    characters: list[CharacterInfo]

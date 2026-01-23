@@ -1,24 +1,33 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Volume2, Sparkles, Trash2 } from 'lucide-react';
-import { useGlobalStore, ChatMessage } from '@/store/useGlobalStore';
+import { Send, Loader2, Volume2, Sparkles, Trash2, Settings, ChevronDown, User } from 'lucide-react';
+import { useGlobalStore, ChatMessage, Character } from '@/store/useGlobalStore';
 import { streamChatCompletion, extractQuotedTexts, CHAT_SYSTEM_PROMPT } from '@/utils/llmApi';
 import { AudioQueueManager } from '@/utils/audioQueue';
+import { fetchCharacters, fetchVoices } from '@/utils/ttsApi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ChatPage() {
   const {
     llm,
     tts,
+    setTTS,
     isConfigured,
     chatMessages,
     addChatMessage,
     updateChatMessage,
     clearChatMessages,
+    voices,
+    setVoices,
+    characters,
+    setCharacters,
+    selectedCharacter,
+    setSelectedCharacter,
   } = useGlobalStore();
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioManagerRef = useRef<AudioQueueManager | null>(null);
   const processedTextsRef = useRef<Set<string>>(new Set());
@@ -40,6 +49,36 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Fetch characters and voices on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [charData, voiceData] = await Promise.all([
+          fetchCharacters(tts.baseUrl),
+          fetchVoices(tts.baseUrl)
+        ]);
+        setCharacters(charData.characters);
+        if (voiceData.voices) {
+          setVoices(voiceData.voices);
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+    loadData();
+  }, [tts.baseUrl, setCharacters, setVoices]);
+
+  const handleCharacterSelect = (character: Character | null) => {
+    setSelectedCharacter(character);
+    if (character && character.voice) {
+      // 从角色音色文件中提取音色名（去掉 .wav 后缀）
+      const voiceName = character.voice.replace(/\.wav$/i, '');
+      // 使用角色专属音色
+      setTTS({ voice: `char/${character.id}/${voiceName}` });
+    }
+    setShowSettings(false);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isStreaming) return;
@@ -76,8 +115,14 @@ export default function ChatPage() {
       let fullContent = '';
       const allQuotedTexts: string[] = [];
 
+      // 构建系统提示词：基础 + 角色附加
+      let systemPrompt = CHAT_SYSTEM_PROMPT;
+      if (selectedCharacter && selectedCharacter.system_prompt) {
+        systemPrompt = `${CHAT_SYSTEM_PROMPT}\n\n【角色设定】\n${selectedCharacter.system_prompt}`;
+      }
+
       for await (const chunk of streamChatCompletion(llm, [
-        { role: 'system', content: CHAT_SYSTEM_PROMPT },
+        { role: 'system', content: systemPrompt },
         ...chatMessages.map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMessage.content },
       ])) {
@@ -201,10 +246,27 @@ export default function ChatPage() {
           <h1 className="text-lg sm:text-xl font-semibold bg-gradient-to-r from-rose-500 to-violet-500 bg-clip-text text-transparent truncate">
             AI 语音对话
           </h1>
-          <p className="hidden sm:block text-xs text-slate-500 mt-0.5">
-            双引号内的对话会自动转为语音播放
-          </p>
         </div>
+
+        {/* Settings Button */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowSettings(!showSettings)}
+          className={`ml-2 p-2 rounded-xl transition-colors cursor-pointer flex-shrink-0 flex items-center gap-1.5 ${
+            showSettings
+              ? 'text-rose-500 bg-rose-50'
+              : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50'
+          }`}
+          title="音色与角色设置"
+        >
+          {selectedCharacter ? (
+            <span className="text-xs font-medium text-rose-500 mr-1">{selectedCharacter.name}</span>
+          ) : null}
+          <Settings size={18} />
+          <ChevronDown size={14} className={`transition-transform ${showSettings ? 'rotate-180' : ''}`} />
+        </motion.button>
+
         {!isConfigured() && (
           <motion.div
             initial={{ scale: 0.9 }}
@@ -227,6 +289,115 @@ export default function ChatPage() {
         )}
       </motion.header>
 
+      {/* Settings Panel */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden border-b border-white/30 glass-container-solid rounded-none"
+          >
+            <div className="px-4 sm:px-6 py-4">
+              <div className="max-w-4xl mx-auto">
+                {/* Character Selection */}
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                    <User size={16} />
+                    角色选择
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleCharacterSelect(null)}
+                      className={`px-3 py-2 rounded-xl text-sm transition-all cursor-pointer ${
+                        !selectedCharacter
+                          ? 'bg-gradient-to-r from-rose-500 to-violet-500 text-white shadow-md'
+                          : 'bg-white/60 text-slate-600 hover:bg-white/80 border border-white/50'
+                      }`}
+                    >
+                      默认助手
+                    </motion.button>
+                    {characters.map((char) => (
+                      <motion.button
+                        key={char.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleCharacterSelect(char)}
+                        className={`px-3 py-2 rounded-xl text-sm transition-all cursor-pointer ${
+                          selectedCharacter?.id === char.id
+                            ? 'bg-gradient-to-r from-rose-500 to-violet-500 text-white shadow-md'
+                            : 'bg-white/60 text-slate-600 hover:bg-white/80 border border-white/50'
+                        }`}
+                      >
+                        {char.name}
+                      </motion.button>
+                    ))}
+                  </div>
+                  {characters.length === 0 && (
+                    <p className="text-xs text-slate-400 mt-2">
+                      暂无自定义角色，请在项目根目录的 char 文件夹中添加角色
+                    </p>
+                  )}
+                </div>
+
+                {/* Voice Selection */}
+                <div>
+                  <h3 className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                    <Volume2 size={16} />
+                    音色选择
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {voices.map((voice) => (
+                      <motion.button
+                        key={voice.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setTTS({ voice: voice.id });
+                          setSelectedCharacter(null);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-sm transition-all cursor-pointer ${
+                          tts.voice === voice.id && !selectedCharacter
+                            ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md'
+                            : 'bg-white/60 text-slate-600 hover:bg-white/80 border border-white/50'
+                        }`}
+                      >
+                        {voice.name}
+                      </motion.button>
+                    ))}
+                  </div>
+                  {voices.length === 0 && (
+                    <p className="text-xs text-slate-400 mt-2">
+                      暂无可用音色，请检查后端服务
+                    </p>
+                  )}
+                </div>
+
+                {/* Current Selection Info */}
+                {selectedCharacter && (
+                  <div className="mt-4 p-3 bg-rose-50/50 rounded-xl border border-rose-100">
+                    <p className="text-xs text-rose-600">
+                      当前角色: <span className="font-medium">{selectedCharacter.name}</span>
+                      {selectedCharacter.voice && (
+                        <span className="ml-2">| 专属音色: {selectedCharacter.voice}</span>
+                      )}
+                    </p>
+                    {selectedCharacter.system_prompt && (
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                        角色设定: {selectedCharacter.system_prompt.slice(0, 100)}...
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Messages with transparent background */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
         <AnimatePresence>
@@ -247,7 +418,9 @@ export default function ChatPage() {
                 </motion.div>
                 <p className="text-base sm:text-lg text-slate-700 mb-2 font-medium">开始对话</p>
                 <p className="text-xs sm:text-sm text-slate-500">
-                  AI 回复中引号内的内容会自动朗读
+                  {selectedCharacter
+                    ? `正在与「${selectedCharacter.name}」对话`
+                    : '点击右上角设置按钮选择角色或音色'}
                 </p>
                 <p className="text-xs text-slate-400 mt-2">
                   聊天记录会自动保存到浏览器

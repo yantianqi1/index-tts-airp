@@ -52,6 +52,14 @@ export interface StudioHistoryItem {
   color: 'pink' | 'cyan' | 'violet' | 'amber';
 }
 
+// 角色信息类型
+export interface Character {
+  id: string;
+  name: string;
+  voice: string | null;
+  system_prompt: string;
+}
+
 interface GlobalStore {
   // LLM Configuration
   llm: LLMConfig;
@@ -89,6 +97,12 @@ interface GlobalStore {
   // Studio State (持久化)
   studioText: string;
   setStudioText: (text: string) => void;
+
+  // Character State
+  characters: Character[];
+  setCharacters: (characters: Character[]) => void;
+  selectedCharacter: Character | null;
+  setSelectedCharacter: (character: Character | null) => void;
 
   // Check if configured
   isConfigured: () => boolean;
@@ -151,6 +165,12 @@ export const useGlobalStore = create<GlobalStore>()(
       // Studio State
       studioText: '',
       setStudioText: (text) => set({ studioText: text }),
+
+      // Character State
+      characters: [],
+      setCharacters: (characters) => set({ characters }),
+      selectedCharacter: null,
+      setSelectedCharacter: (character) => set({ selectedCharacter: character }),
 
       // Check Configuration
       isConfigured: () => {

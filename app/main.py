@@ -8,6 +8,7 @@ from typing import Annotated, Optional
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from app.core.config import settings
@@ -94,6 +95,15 @@ app = FastAPI(
     version=settings.app_version,
     description="基于 IndexTTS 2.0 的语音合成 API 微服务",
     lifespan=lifespan
+)
+
+# 添加 CORS 中间件（允许跨域请求）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 生产环境建议限制具体域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

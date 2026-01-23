@@ -89,6 +89,9 @@ export default function ChatPage() {
       const voiceName = character.voice.replace(/\.wav$/i, '');
       // 使用角色专属音色
       setChatTTS({ voice: `char/${character.id}/${voiceName}` });
+    } else {
+      // 切换到默认助手或角色无音色时，重置为默认音色
+      setChatTTS({ voice: 'default' });
     }
     setShowSettings(false);
   };

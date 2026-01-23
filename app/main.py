@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from app.core.config import settings
-from app.core.inference import tts_engine
+from app.core.inference import tts_engine, tts_queue
 from app.models.schemas import (
     TTSRequest,
     VoicesResponse,
@@ -22,7 +22,9 @@ from app.models.schemas import (
     AudioRepositoryResponse,
     AudioRepositoryItem,
     CharacterInfo,
-    CharactersResponse
+    CharactersResponse,
+    QueueStatusResponse,
+    QueuePositionResponse
 )
 from app.utils.audio import (
     save_audio_to_wav,
@@ -123,6 +125,26 @@ async def root():
         "version": settings.app_version,
         "status": "running"
     }
+
+
+@app.get("/v1/queue/status", response_model=QueueStatusResponse)
+async def get_queue_status():
+    """
+    获取TTS队列状态
+
+    返回当前队列长度、最大容量、是否正在处理等信息
+    """
+    try:
+        status = await tts_queue.get_status()
+        return QueueStatusResponse(
+            queue_length=status["queue_length"],
+            max_queue_size=status["max_queue_size"],
+            is_processing=status["is_processing"],
+            can_submit=status["can_submit"]
+        )
+    except Exception as e:
+        logger.error(f"获取队列状态失败: {e}")
+        raise HTTPException(status_code=500, detail="获取队列状态失败")
 
 
 @app.get("/v1/voices", response_model=VoicesResponse)

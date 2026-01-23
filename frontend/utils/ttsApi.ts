@@ -131,3 +131,21 @@ export async function fetchCharacters(baseUrl?: string): Promise<{ characters: C
 
   return await response.json();
 }
+
+
+export interface QueueStatus {
+  queue_length: number;
+  max_queue_size: number;
+  is_processing: boolean;
+  can_submit: boolean;
+}
+
+export async function fetchQueueStatus(baseUrl?: string): Promise<QueueStatus> {
+  const response = await fetch(buildUrl(baseUrl, '/v1/queue/status'));
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch queue status: ${response.statusText}`);
+  }
+
+  return await response.json();
+}

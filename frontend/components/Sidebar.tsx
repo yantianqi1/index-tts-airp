@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { MessageSquare, Mic, Package, Settings, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { useGlobalStore } from '@/store/useGlobalStore';
 import { motion } from 'framer-motion';
+import QueueMonitor from './QueueMonitor';
 
 // Nav items with fun names and individual accent colors
 const navItems = [
@@ -177,6 +178,11 @@ export default function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Queue Monitor */}
+        <div className="mt-auto">
+          <QueueMonitor collapsed={sidebarCollapsed} />
+        </div>
 
         {/* Footer with version info */}
         {!sidebarCollapsed && (

@@ -4,8 +4,11 @@ import inspect
 import logging
 import os
 import sys
+import time
+import uuid
+from collections import OrderedDict
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 import torch
 import numpy as np
 import soundfile as sf
@@ -13,6 +16,75 @@ import soundfile as sf
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# 队列配置
+MAX_QUEUE_SIZE = 50
+
+
+class QueueItem:
+    """队列项"""
+    def __init__(self, request_id: str):
+        self.request_id = request_id
+        self.created_at = time.time()
+        self.status = "pending"  # pending, processing, completed, error
+
+
+class TTSQueue:
+    """TTS 请求队列管理器"""
+
+    def __init__(self, max_size: int = MAX_QUEUE_SIZE):
+        self.max_size = max_size
+        self._queue: OrderedDict[str, QueueItem] = OrderedDict()
+        self._lock = asyncio.Lock()
+        self._current_processing: Optional[str] = None
+
+    async def add(self, request_id: str) -> tuple[bool, int]:
+        """添加请求到队列，返回 (是否成功, 位置)"""
+        async with self._lock:
+            if len(self._queue) >= self.max_size:
+                return False, -1
+
+            item = QueueItem(request_id)
+            self._queue[request_id] = item
+            position = list(self._queue.keys()).index(request_id) + 1
+            return True, position
+
+    async def remove(self, request_id: str):
+        """从队列移除请求"""
+        async with self._lock:
+            if request_id in self._queue:
+                del self._queue[request_id]
+            if self._current_processing == request_id:
+                self._current_processing = None
+
+    async def set_processing(self, request_id: str):
+        """设置正在处理的请求"""
+        async with self._lock:
+            self._current_processing = request_id
+            if request_id in self._queue:
+                self._queue[request_id].status = "processing"
+
+    async def get_status(self) -> Dict[str, Any]:
+        """获取队列状态"""
+        async with self._lock:
+            return {
+                "queue_length": len(self._queue),
+                "max_queue_size": self.max_size,
+                "is_processing": self._current_processing is not None,
+                "current_processing": self._current_processing,
+                "can_submit": len(self._queue) < self.max_size,
+            }
+
+    async def get_position(self, request_id: str) -> int:
+        """获取请求在队列中的位置 (1-based), 如果不在队列中返回 -1"""
+        async with self._lock:
+            if request_id not in self._queue:
+                return -1
+            return list(self._queue.keys()).index(request_id) + 1
+
+
+# 全局队列实例
+tts_queue = TTSQueue(MAX_QUEUE_SIZE)
 
 
 class TTSModelEngine:
@@ -218,50 +290,69 @@ class TTSModelEngine:
         )
 
     async def generate(
-        self, 
-        text: str, 
-        voice_id: str = "default", 
-        emotion: str = "default", 
+        self,
+        text: str,
+        voice_id: str = "default",
+        emotion: str = "default",
         speed: float = 1.0,
         temperature: float = 1.0,
         top_p: float = 0.8,
         top_k: int = 20,
-        repetition_penalty: float = 1.0
+        repetition_penalty: float = 1.0,
+        request_id: Optional[str] = None
     ) -> np.ndarray:
-        """生成语音（异步，带显存锁保护）"""
+        """生成语音（异步，带显存锁保护和队列管理）"""
         if not self.is_loaded:
             raise RuntimeError("模型未加载，请先调用 load_model()")
 
-        if emotion == "auto":
-            from app.services.sentiment import sentiment_analyzer
-            emotion = await sentiment_analyzer.analyze(text)
-            logger.info(f"智能情感分析结果: {emotion}")
+        # 生成请求ID
+        if request_id is None:
+            request_id = str(uuid.uuid4())
 
-        ref_audio_path = self._get_reference_audio_path(voice_id, emotion)
+        # 添加到队列
+        success, position = await tts_queue.add(request_id)
+        if not success:
+            raise RuntimeError(f"队列已满（最大 {MAX_QUEUE_SIZE}），请稍后重试")
 
-        async with self.inference_lock:
-            logger.info(
-                f"开始推理: text_len={len(text)}, voice={voice_id}, emotion={emotion}, "
-                f"speed={speed}, temp={temperature}, top_p={top_p}, top_k={top_k}, rep_penalty={repetition_penalty}"
-            )
-            try:
-                loop = asyncio.get_event_loop()
-                audio_data = await loop.run_in_executor(
-                    None, 
-                    self._sync_generate, 
-                    text, 
-                    str(ref_audio_path), 
-                    speed,
-                    temperature,
-                    top_p,
-                    top_k,
-                    repetition_penalty
+        logger.info(f"请求 {request_id[:8]}... 加入队列，位置: {position}")
+
+        try:
+            if emotion == "auto":
+                from app.services.sentiment import sentiment_analyzer
+                emotion = await sentiment_analyzer.analyze(text)
+                logger.info(f"智能情感分析结果: {emotion}")
+
+            ref_audio_path = self._get_reference_audio_path(voice_id, emotion)
+
+            # 设置为正在处理
+            await tts_queue.set_processing(request_id)
+
+            async with self.inference_lock:
+                logger.info(
+                    f"开始推理: text_len={len(text)}, voice={voice_id}, emotion={emotion}, "
+                    f"speed={speed}, temp={temperature}, top_p={top_p}, top_k={top_k}, rep_penalty={repetition_penalty}"
                 )
-                logger.info(f"✓ 推理完成，音频长度: {len(audio_data)} samples")
-                return audio_data
-            except Exception as e:
-                logger.error(f"✗ 推理失败: {e}")
-                raise RuntimeError(f"语音合成失败: {e}")
+                try:
+                    loop = asyncio.get_event_loop()
+                    audio_data = await loop.run_in_executor(
+                        None,
+                        self._sync_generate,
+                        text,
+                        str(ref_audio_path),
+                        speed,
+                        temperature,
+                        top_p,
+                        top_k,
+                        repetition_penalty
+                    )
+                    logger.info(f"✓ 推理完成，音频长度: {len(audio_data)} samples")
+                    return audio_data
+                except Exception as e:
+                    logger.error(f"✗ 推理失败: {e}")
+                    raise RuntimeError(f"语音合成失败: {e}")
+        finally:
+            # 从队列移除
+            await tts_queue.remove(request_id)
 
     def _sync_generate(
         self, 

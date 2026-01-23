@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Wand2, Loader2, Trash2, Download, Play, Pause, Sparkles, Music, Tag, X, Sliders } from 'lucide-react';
 import { useGlobalStore } from '@/store/useGlobalStore';
-import { generateSpeech, fetchVoices } from '@/utils/ttsApi';
+import { generateSpeech, fetchVoices, fetchQueueStatus, QueueStatus } from '@/utils/ttsApi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface GeneratedAudio {
@@ -209,6 +209,24 @@ export default function StudioPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [showGallery, setShowGallery] = useState(false);
+  const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
+
+  // 加载队列状态
+  const loadQueueStatus = useCallback(async () => {
+    try {
+      const status = await fetchQueueStatus(tts.baseUrl);
+      setQueueStatus(status);
+    } catch {
+      setQueueStatus(null);
+    }
+  }, [tts.baseUrl]);
+
+  // 定期刷新队列状态
+  useEffect(() => {
+    loadQueueStatus();
+    const interval = setInterval(loadQueueStatus, 3000);
+    return () => clearInterval(interval);
+  }, [loadQueueStatus]);
 
   // 从持久化的 store 同步 TTS 参数（处理 hydration）
   useEffect(() => {
@@ -258,6 +276,12 @@ export default function StudioPage() {
 
     if (!isConfigured()) {
       alert('请先在设置中配置 TTS 参数');
+      return;
+    }
+
+    // 检查队列是否已满
+    if (queueStatus && !queueStatus.can_submit) {
+      alert('队列已满（最大50），请稍后重试');
       return;
     }
 
@@ -396,7 +420,13 @@ export default function StudioPage() {
                 <div className="relative">
                   <textarea
                     value={studioText}
-                    onChange={(e) => setStudioText(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.length <= 500) {
+                        setStudioText(value);
+                      }
+                    }}
+                    maxLength={500}
                     placeholder="在这里写下你想要转化为声音的文字..."
                     className="
                       w-full h-40 sm:h-64 px-4 py-3 sm:px-5 sm:py-4
@@ -417,8 +447,14 @@ export default function StudioPage() {
                     }}
                   />
                   {/* Character counter badge */}
-                  <div className="absolute bottom-3 right-3 px-2 sm:px-3 py-1 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full studioText-xs studioText-white font-medium shadow-lg">
-                    {studioText.length} 字
+                  <div className={`absolute bottom-3 right-3 px-2 sm:px-3 py-1 rounded-full studioText-xs font-medium shadow-lg ${
+                    studioText.length >= 500
+                      ? 'bg-gradient-to-r from-rose-400 to-pink-500 studioText-white'
+                      : studioText.length >= 400
+                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 studioText-white'
+                        : 'bg-gradient-to-r from-cyan-400 to-blue-500 studioText-white'
+                  }`}>
+                    {studioText.length}/500 字
                   </div>
                 </div>
               </div>
@@ -790,7 +826,7 @@ export default function StudioPage() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleGenerate}
-                disabled={!studioText.trim() || isGenerating || !isConfigured()}
+                disabled={!studioText.trim() || isGenerating || !isConfigured() || (queueStatus !== null && !queueStatus.can_submit)}
                 className={`
                   w-full mt-4 sm:mt-5 px-6 sm:px-8 py-3 sm:py-4 rounded-2xl
                   font-bold studioText-base sm:studioText-lg studioText-white
@@ -799,7 +835,9 @@ export default function StudioPage() {
                   transition-all duration-300
                   ${isGenerating
                     ? 'bg-gradient-to-r from-slate-400 to-slate-500'
-                    : 'bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 hover:shadow-xl hover:shadow-blue-200'
+                    : queueStatus && !queueStatus.can_submit
+                      ? 'bg-gradient-to-r from-rose-400 to-pink-500'
+                      : 'bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 hover:shadow-xl hover:shadow-blue-200'
                   }
                 `}
                 style={{
@@ -811,6 +849,11 @@ export default function StudioPage() {
                   <>
                     <Loader2 size={22} className="animate-spin" />
                     正在生成...
+                  </>
+                ) : queueStatus && !queueStatus.can_submit ? (
+                  <>
+                    <Wand2 size={22} />
+                    队列已满
                   </>
                 ) : (
                   <>

@@ -68,3 +68,19 @@ class CharacterInfo(BaseModel):
 class CharactersResponse(BaseModel):
     """角色列表响应模型"""
     characters: list[CharacterInfo]
+
+
+class QueueStatusResponse(BaseModel):
+    """队列状态响应模型"""
+    queue_length: int = Field(..., description="当前队列长度")
+    max_queue_size: int = Field(..., description="队列最大容量")
+    is_processing: bool = Field(..., description="是否正在处理请求")
+    can_submit: bool = Field(..., description="是否可以提交新请求")
+
+
+class QueuePositionResponse(BaseModel):
+    """队列位置响应模型"""
+    request_id: str = Field(..., description="请求ID")
+    position: int = Field(..., description="在队列中的位置 (1-based)，-1 表示不在队列中")
+    queue_length: int = Field(..., description="当前队列长度")
+    max_queue_size: int = Field(..., description="队列最大容量")

@@ -1,21 +1,22 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Volume2, Sparkles } from 'lucide-react';
-import { useGlobalStore } from '@/store/useGlobalStore';
-import { streamChatCompletion, extractQuotedTexts, Message, CHAT_SYSTEM_PROMPT } from '@/utils/llmApi';
+import { Send, Loader2, Volume2, Sparkles, Trash2 } from 'lucide-react';
+import { useGlobalStore, ChatMessage } from '@/store/useGlobalStore';
+import { streamChatCompletion, extractQuotedTexts, CHAT_SYSTEM_PROMPT } from '@/utils/llmApi';
 import { AudioQueueManager } from '@/utils/audioQueue';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface ChatMessage extends Message {
-  id: string;
-  timestamp: number;
-  quotedTexts?: string[];
-}
-
 export default function ChatPage() {
-  const { llm, tts, isConfigured } = useGlobalStore();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const {
+    llm,
+    tts,
+    isConfigured,
+    chatMessages,
+    addChatMessage,
+    updateChatMessage,
+    clearChatMessages,
+  } = useGlobalStore();
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,7 +39,7 @@ export default function ChatPage() {
   // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [chatMessages]);
 
   const handleSend = async () => {
     if (!input.trim() || isStreaming) return;
@@ -56,19 +57,20 @@ export default function ChatPage() {
     };
 
     setInput('');
-    setMessages(prev => [...prev, userMessage]);
+    addChatMessage(userMessage);
     setIsStreaming(true);
     processedTextsRef.current.clear();
 
     // Add empty assistant message
     const assistantId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, {
+    const assistantMessage: ChatMessage = {
       id: assistantId,
       role: 'assistant',
       content: '',
       timestamp: Date.now(),
       quotedTexts: [],
-    }]);
+    };
+    addChatMessage(assistantMessage);
 
     try {
       let fullContent = '';
@@ -76,7 +78,7 @@ export default function ChatPage() {
 
       for await (const chunk of streamChatCompletion(llm, [
         { role: 'system', content: CHAT_SYSTEM_PROMPT },
-        ...messages.map(m => ({ role: m.role, content: m.content })),
+        ...chatMessages.map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMessage.content },
       ])) {
         fullContent += chunk;
@@ -95,19 +97,16 @@ export default function ChatPage() {
         }
 
         // Update message
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId
-            ? { ...m, content: fullContent, quotedTexts: allQuotedTexts }
-            : m
-        ));
+        updateChatMessage(assistantId, {
+          content: fullContent,
+          quotedTexts: allQuotedTexts,
+        });
       }
     } catch (error) {
       console.error('Chat error:', error);
-      setMessages(prev => prev.map(m =>
-        m.id === assistantId
-          ? { ...m, content: '抱歉，发生了错误。请检查配置或稍后重试。' }
-          : m
-      ));
+      updateChatMessage(assistantId, {
+        content: '抱歉，发生了错误。请检查配置或稍后重试。',
+      });
     } finally {
       setIsStreaming(false);
     }
@@ -215,12 +214,23 @@ export default function ChatPage() {
             请先配置
           </motion.div>
         )}
+        {chatMessages.length > 0 && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={clearChatMessages}
+            className="ml-2 p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer flex-shrink-0"
+            title="清空聊天记录"
+          >
+            <Trash2 size={18} />
+          </motion.button>
+        )}
       </motion.header>
 
       {/* Messages with transparent background */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
         <AnimatePresence>
-          {messages.length === 0 ? (
+          {chatMessages.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -240,13 +250,13 @@ export default function ChatPage() {
                   AI 回复中引号内的内容会自动朗读
                 </p>
                 <p className="text-xs text-slate-400 mt-2">
-                  提示：聊天记录不会保存，刷新页面后将清空
+                  聊天记录会自动保存到浏览器
                 </p>
               </div>
             </motion.div>
           ) : (
             <>
-              {messages.map((msg, idx) => renderMessage(msg, idx))}
+              {chatMessages.map((msg, idx) => renderMessage(msg, idx))}
               <div ref={messagesEndRef} />
             </>
           )}

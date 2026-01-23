@@ -139,17 +139,17 @@ async def get_voices():
         for voice_dir in settings.presets_dir.iterdir():
             if not voice_dir.is_dir():
                 continue
-            
+
             voice_id = voice_dir.name
-            
-            # 获取该音色下的所有情感文件
+
+            # 获取该音色下的所有情感文件（支持大小写后缀）
             emotions = []
             has_default = False
-            
-            for wav_file in voice_dir.glob("*.wav"):
+
+            for wav_file in list(voice_dir.glob("*.wav")) + list(voice_dir.glob("*.WAV")):
                 emotion_name = wav_file.stem
                 emotions.append(emotion_name)
-                if emotion_name == "default":
+                if emotion_name.lower() == "default":
                     has_default = True
             
             # 只有包含至少一个 wav 文件的目录才算有效音色
@@ -163,8 +163,8 @@ async def get_voices():
                     )
                 )
         
-        # 兼容旧的扁平结构
-        for wav_file in settings.presets_dir.glob("*.wav"):
+        # 兼容旧的扁平结构（支持大小写后缀）
+        for wav_file in list(settings.presets_dir.glob("*.wav")) + list(settings.presets_dir.glob("*.WAV")):
             voice_id = wav_file.stem
             # 避免重复添加（如果已经在新结构中）
             if not any(v.id == voice_id for v in voices):

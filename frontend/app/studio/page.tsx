@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface GeneratedAudio {
   id: string;
-  text: string;
+  studioText: string;
   blob: Blob;
   timestamp: number;
   voice: string;
@@ -143,7 +143,7 @@ function AudioCard({
         onClick={() => onDelete(audio.id)}
         className="absolute top-2 right-2 p-1.5 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
       >
-        <Trash2 size={14} className="text-slate-400 hover:text-rose-500" />
+        <Trash2 size={14} className="studioText-slate-400 hover:studioText-rose-500" />
       </motion.button>
 
       <div className="flex items-center gap-3 sm:gap-4">
@@ -159,16 +159,16 @@ function AudioCard({
           `}
         >
           {isPlaying ? (
-            <Pause size={18} className="text-white" />
+            <Pause size={18} className="studioText-white" />
           ) : (
-            <Play size={18} className="text-white ml-0.5" />
+            <Play size={18} className="studioText-white ml-0.5" />
           )}
         </motion.button>
 
         {/* Waveform */}
         <div className="flex-1 min-w-0">
           <WaveformVisualizer isPlaying={isPlaying} color={audio.color} />
-          <p className="text-xs text-slate-500 mt-1 line-clamp-1">{audio.text}</p>
+          <p className="studioText-xs studioText-slate-500 mt-1 line-clamp-1">{audio.studioText}</p>
         </div>
 
         {/* Download */}
@@ -178,23 +178,22 @@ function AudioCard({
           onClick={handleDownload}
           className="p-2 hover:bg-white/60 rounded-xl transition-colors cursor-pointer flex-shrink-0"
         >
-          <Download size={18} className="text-slate-400 hover:text-cyan-500" />
+          <Download size={18} className="studioText-slate-400 hover:studioText-cyan-500" />
         </motion.button>
       </div>
 
       {/* Metadata */}
-      <div className="flex gap-2 mt-2 sm:mt-3 text-xs text-slate-500 flex-wrap">
+      <div className="flex gap-2 mt-2 sm:mt-3 studioText-xs studioText-slate-500 flex-wrap">
         <span className="bg-white/60 px-2 py-0.5 rounded-md">{audio.voice}</span>
         <span className="bg-white/60 px-2 py-0.5 rounded-md">{audio.emotion}</span>
-        <span className="text-slate-400 ml-auto">{new Date(audio.timestamp).toLocaleTimeString()}</span>
+        <span className="studioText-slate-400 ml-auto">{new Date(audio.timestamp).toLocaleTimeString()}</span>
       </div>
     </motion.div>
   );
 }
 
 export default function StudioPage() {
-  const { tts, setTTS, voices, setVoices, isConfigured } = useGlobalStore();
-  const [text, setText] = useState('');
+  const { tts, setTTS, voices, setVoices, isConfigured, studioText, setStudioText } = useGlobalStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [history, setHistory] = useState<GeneratedAudio[]>([]);
   const [localEmotion, setLocalEmotion] = useState(tts.emotion);
@@ -210,6 +209,17 @@ export default function StudioPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [showGallery, setShowGallery] = useState(false);
+
+  // 从持久化的 store 同步 TTS 参数（处理 hydration）
+  useEffect(() => {
+    setLocalVoice(tts.voice);
+    setLocalEmotion(tts.emotion);
+    setLocalSpeed(tts.speed);
+    setLocalTemperature(tts.temperature);
+    setLocalTopP(tts.topP);
+    setLocalTopK(tts.topK);
+    setLocalRepetitionPenalty(tts.repetitionPenalty);
+  }, [tts.voice, tts.emotion, tts.speed, tts.temperature, tts.topP, tts.topK, tts.repetitionPenalty]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
@@ -244,7 +254,7 @@ export default function StudioPage() {
   }, [tts.baseUrl]);
 
   const handleGenerate = async () => {
-    if (!text.trim() || isGenerating) return;
+    if (!studioText.trim() || isGenerating) return;
 
     if (!isConfigured()) {
       alert('请先在设置中配置 TTS 参数');
@@ -280,13 +290,13 @@ export default function StudioPage() {
           topK: localTopK,
           repetitionPenalty: localRepetitionPenalty,
         },
-        text,
+        studioText,
         saveToRepo ? { saveAudio: true, saveName: saveName.trim() } : undefined
       );
 
       const audio: GeneratedAudio = {
         id: Date.now().toString(),
-        text: text.slice(0, 100),
+        studioText: studioText.slice(0, 100),
         blob,
         timestamp: Date.now(),
         voice: localVoice,
@@ -295,7 +305,7 @@ export default function StudioPage() {
       };
 
       setHistory(prev => [audio, ...prev]);
-      setText('');
+      setStudioText('');
       setSaveName('');
       setSelectedTags([]);
       // On mobile, show gallery after generating
@@ -320,25 +330,25 @@ export default function StudioPage() {
       <div className="lg:hidden flex border-b border-white/30 glass-container-solid rounded-none">
         <button
           onClick={() => setShowGallery(false)}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 py-3 studioText-sm font-medium transition-colors ${
             !showGallery
-              ? 'text-cyan-600 border-b-2 border-cyan-500'
-              : 'text-slate-500'
+              ? 'studioText-cyan-600 border-b-2 border-cyan-500'
+              : 'studioText-slate-500'
           }`}
         >
           创作
         </button>
         <button
           onClick={() => setShowGallery(true)}
-          className={`flex-1 py-3 text-sm font-medium transition-colors relative ${
+          className={`flex-1 py-3 studioText-sm font-medium transition-colors relative ${
             showGallery
-              ? 'text-cyan-600 border-b-2 border-cyan-500'
-              : 'text-slate-500'
+              ? 'studioText-cyan-600 border-b-2 border-cyan-500'
+              : 'studioText-slate-500'
           }`}
         >
           成果
           {history.length > 0 && (
-            <span className="absolute top-2 right-1/4 w-5 h-5 bg-rose-500 text-white text-xs rounded-full flex items-center justify-center">
+            <span className="absolute top-2 right-1/4 w-5 h-5 bg-rose-500 studioText-white studioText-xs rounded-full flex items-center justify-center">
               {history.length}
             </span>
           )}
@@ -357,9 +367,9 @@ export default function StudioPage() {
           <header className="hidden lg:flex h-16 border-b border-white/30 px-6 items-center glass-container-solid rounded-none">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-xl">
-                <Music size={20} className="text-white" />
+                <Music size={20} className="studioText-white" />
               </div>
-              <h1 className="text-xl font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
+              <h1 className="studioText-xl font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-studioText studioText-transparent">
                 创作工坊
               </h1>
             </div>
@@ -377,23 +387,23 @@ export default function StudioPage() {
               <div className="relative">
                 {/* Notepad Header */}
                 <div className="flex items-center gap-2 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-white/30">
-                  <Sparkles size={16} className="text-cyan-500" />
-                  <span className="text-xs sm:text-sm font-medium text-slate-600">创作画布</span>
+                  <Sparkles size={16} className="studioText-cyan-500" />
+                  <span className="studioText-xs sm:studioText-sm font-medium studioText-slate-600">创作画布</span>
                 </div>
 
                 {/* Textarea */}
                 <div className="relative">
                   <textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    value={studioText}
+                    onChange={(e) => setStudioText(e.target.value)}
                     placeholder="在这里写下你想要转化为声音的文字..."
                     className="
                       w-full h-40 sm:h-64 px-4 py-3 sm:px-5 sm:py-4
                       bg-white/40 backdrop-blur-sm
                       rounded-2xl border-0
                       resize-none outline-none
-                      text-slate-700 placeholder-slate-400
-                      leading-relaxed text-sm sm:text-base
+                      studioText-slate-700 placeholder-slate-400
+                      leading-relaxed studioText-sm sm:studioText-base
                       focus:ring-2 focus:ring-cyan-200
                       shadow-inner
                       caret-cyan-500
@@ -406,8 +416,8 @@ export default function StudioPage() {
                     }}
                   />
                   {/* Character counter badge */}
-                  <div className="absolute bottom-3 right-3 px-2 sm:px-3 py-1 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full text-xs text-white font-medium shadow-lg">
-                    {text.length} 字
+                  <div className="absolute bottom-3 right-3 px-2 sm:px-3 py-1 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full studioText-xs studioText-white font-medium shadow-lg">
+                    {studioText.length} 字
                   </div>
                 </div>
               </div>
@@ -423,14 +433,14 @@ export default function StudioPage() {
               <div className="grid grid-cols-2 lg:flex lg:flex-wrap items-center gap-3 sm:gap-4">
                 {/* Voice Selector */}
                 <div className="col-span-1 lg:flex-1 lg:min-w-[150px]">
-                  <label className="block text-xs font-medium text-slate-500 mb-1 sm:mb-2">音色</label>
+                  <label className="block studioText-xs font-medium studioText-slate-500 mb-1 sm:mb-2">音色</label>
                   <select
                     value={localVoice}
                     onChange={(e) => setLocalVoice(e.target.value)}
                     className="
                       w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/80 hover:bg-blue-50
-                      rounded-full border-0 outline-none text-sm
-                      text-slate-700 hover:text-blue-500
+                      rounded-full border-0 outline-none studioText-sm
+                      studioText-slate-700 hover:studioText-blue-500
                       cursor-pointer transition-all duration-200
                       shadow-sm hover:shadow-md
                       focus:ring-2 focus:ring-cyan-200
@@ -450,14 +460,14 @@ export default function StudioPage() {
 
                 {/* Emotion Selector */}
                 <div className="col-span-1 lg:flex-1 lg:min-w-[120px]">
-                  <label className="block text-xs font-medium text-slate-500 mb-1 sm:mb-2">情感</label>
+                  <label className="block studioText-xs font-medium studioText-slate-500 mb-1 sm:mb-2">情感</label>
                   <select
                     value={localEmotion}
                     onChange={(e) => setLocalEmotion(e.target.value)}
                     className="
                       w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/80 hover:bg-violet-50
-                      rounded-full border-0 outline-none text-sm
-                      text-slate-700 hover:text-violet-500
+                      rounded-full border-0 outline-none studioText-sm
+                      studioText-slate-700 hover:studioText-violet-500
                       cursor-pointer transition-all duration-200
                       shadow-sm hover:shadow-md
                       focus:ring-2 focus:ring-violet-200
@@ -473,8 +483,8 @@ export default function StudioPage() {
 
                 {/* Speed Slider */}
                 <div className="col-span-2 lg:flex-1 lg:min-w-[180px]">
-                  <label className="block text-xs font-medium text-slate-500 mb-1 sm:mb-2">
-                    语速 <span className="text-cyan-500 font-bold">{localSpeed.toFixed(1)}x</span>
+                  <label className="block studioText-xs font-medium studioText-slate-500 mb-1 sm:mb-2">
+                    语速 <span className="studioText-cyan-500 font-bold">{localSpeed.toFixed(1)}x</span>
                   </label>
                   <input
                     type="range"
@@ -507,13 +517,13 @@ export default function StudioPage() {
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="flex items-center gap-2 text-sm text-slate-600 hover:text-cyan-600 cursor-pointer transition-colors w-full"
+                  className="flex items-center gap-2 studioText-sm studioText-slate-600 hover:studioText-cyan-600 cursor-pointer transition-colors w-full"
                 >
-                  <Sliders size={14} className="text-cyan-500" />
+                  <Sliders size={14} className="studioText-cyan-500" />
                   <span className="font-medium">声音画质</span>
                   <motion.span
                     animate={{ rotate: showAdvanced ? 180 : 0 }}
-                    className="ml-auto text-slate-400"
+                    className="ml-auto studioText-slate-400"
                   >
                     ▼
                   </motion.span>
@@ -530,10 +540,10 @@ export default function StudioPage() {
                     >
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 p-3 sm:p-4 bg-white/40 rounded-xl">
                         <div>
-                          <label className="block text-xs sm:text-sm text-slate-600 mb-1">
-                            温度系数: <span className="text-rose-500 font-semibold">{localTemperature}</span>
+                          <label className="block studioText-xs sm:studioText-sm studioText-slate-600 mb-1">
+                            温度系数: <span className="studioText-rose-500 font-semibold">{localTemperature}</span>
                           </label>
-                          <p className="text-xs text-slate-400 mb-2 hidden sm:block">控制语音的随机性和创造性</p>
+                          <p className="studioText-xs studioText-slate-400 mb-2 hidden sm:block">控制语音的随机性和创造性</p>
                           <input
                             type="range"
                             min="0"
@@ -559,10 +569,10 @@ export default function StudioPage() {
                         </div>
 
                         <div>
-                          <label className="block text-xs sm:text-sm text-slate-600 mb-1">
-                            核采样概率: <span className="text-cyan-500 font-semibold">{localTopP}</span>
+                          <label className="block studioText-xs sm:studioText-sm studioText-slate-600 mb-1">
+                            核采样概率: <span className="studioText-cyan-500 font-semibold">{localTopP}</span>
                           </label>
-                          <p className="text-xs text-slate-400 mb-2 hidden sm:block">限制采样范围，值越小越稳定</p>
+                          <p className="studioText-xs studioText-slate-400 mb-2 hidden sm:block">限制采样范围，值越小越稳定</p>
                           <input
                             type="range"
                             min="0"
@@ -588,10 +598,10 @@ export default function StudioPage() {
                         </div>
 
                         <div>
-                          <label className="block text-xs sm:text-sm text-slate-600 mb-1">
-                            候选词数量: <span className="text-violet-500 font-semibold">{localTopK}</span>
+                          <label className="block studioText-xs sm:studioText-sm studioText-slate-600 mb-1">
+                            候选词数量: <span className="studioText-violet-500 font-semibold">{localTopK}</span>
                           </label>
-                          <p className="text-xs text-slate-400 mb-2 hidden sm:block">每步考虑的候选数量</p>
+                          <p className="studioText-xs studioText-slate-400 mb-2 hidden sm:block">每步考虑的候选数量</p>
                           <input
                             type="range"
                             min="1"
@@ -617,10 +627,10 @@ export default function StudioPage() {
                         </div>
 
                         <div>
-                          <label className="block text-xs sm:text-sm text-slate-600 mb-1">
-                            重复惩罚: <span className="text-amber-500 font-semibold">{localRepetitionPenalty}</span>
+                          <label className="block studioText-xs sm:studioText-sm studioText-slate-600 mb-1">
+                            重复惩罚: <span className="studioText-amber-500 font-semibold">{localRepetitionPenalty}</span>
                           </label>
-                          <p className="text-xs text-slate-400 mb-2 hidden sm:block">抑制重复，值越高越少重复</p>
+                          <p className="studioText-xs studioText-slate-400 mb-2 hidden sm:block">抑制重复，值越高越少重复</p>
                           <input
                             type="range"
                             min="1"
@@ -653,12 +663,12 @@ export default function StudioPage() {
               {/* Save to repo option */}
               <div className="mt-4 pt-4 border-t border-white/30 space-y-3 sm:space-y-4">
                 <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                  <label className="flex items-center gap-2 studioText-sm studioText-slate-600 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={saveToRepo}
                       onChange={(e) => setSaveToRepo(e.target.checked)}
-                      className="w-4 h-4 text-cyan-500 rounded-lg focus:ring-cyan-400 cursor-pointer"
+                      className="w-4 h-4 studioText-cyan-500 rounded-lg focus:ring-cyan-400 cursor-pointer"
                     />
                     保存到仓库
                   </label>
@@ -666,13 +676,13 @@ export default function StudioPage() {
                     <motion.input
                       initial={{ width: 0, opacity: 0 }}
                       animate={{ width: 'auto', opacity: 1 }}
-                      type="text"
+                      type="studioText"
                       value={saveName}
                       onChange={(e) => setSaveName(e.target.value)}
                       placeholder="音频名称"
                       className="
                         flex-1 min-w-[120px] px-3 sm:px-4 py-2 bg-white/60 rounded-full
-                        text-sm text-slate-700 placeholder-slate-400
+                        studioText-sm studioText-slate-700 placeholder-slate-400
                         outline-none focus:ring-2 focus:ring-cyan-200
                         transition-all duration-200
                       "
@@ -687,8 +697,8 @@ export default function StudioPage() {
                     animate={{ height: 'auto', opacity: 1 }}
                     className="space-y-2 sm:space-y-3"
                   >
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Tag size={14} className="text-cyan-500" />
+                    <div className="flex items-center gap-2 studioText-sm studioText-slate-600">
+                      <Tag size={14} className="studioText-cyan-500" />
                       <span>选择标签</span>
                     </div>
 
@@ -701,11 +711,11 @@ export default function StudioPage() {
                           whileTap={{ scale: 0.95 }}
                           onClick={() => toggleTag(tag)}
                           className={`
-                            px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium cursor-pointer
+                            px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full studioText-xs sm:studioText-sm font-medium cursor-pointer
                             transition-all duration-200
                             ${selectedTags.includes(tag)
-                              ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white shadow-md'
-                              : 'bg-white/60 text-slate-600 hover:bg-white/80 border border-white/50'
+                              ? 'bg-gradient-to-r from-cyan-400 to-blue-500 studioText-white shadow-md'
+                              : 'bg-white/60 studioText-slate-600 hover:bg-white/80 border border-white/50'
                             }
                           `}
                         >
@@ -723,8 +733,8 @@ export default function StudioPage() {
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             className="
-                              px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium
-                              bg-gradient-to-r from-violet-400 to-purple-500 text-white
+                              px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full studioText-xs sm:studioText-sm font-medium
+                              bg-gradient-to-r from-violet-400 to-purple-500 studioText-white
                               flex items-center gap-1.5
                             "
                           >
@@ -743,14 +753,14 @@ export default function StudioPage() {
                     {/* Custom tag input */}
                     <div className="flex gap-2">
                       <input
-                        type="text"
+                        type="studioText"
                         value={customTag}
                         onChange={(e) => setCustomTag(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addCustomTag()}
                         placeholder="添加自定义标签..."
                         className="
                           flex-1 px-3 sm:px-4 py-2 bg-white/40 rounded-full
-                          text-sm text-slate-700 placeholder-slate-400
+                          studioText-sm studioText-slate-700 placeholder-slate-400
                           outline-none focus:ring-2 focus:ring-violet-200
                           transition-all duration-200
                         "
@@ -762,7 +772,7 @@ export default function StudioPage() {
                         disabled={!customTag.trim()}
                         className="
                           px-3 sm:px-4 py-2 bg-gradient-to-r from-violet-400 to-purple-500
-                          text-white text-sm font-medium rounded-full
+                          studioText-white studioText-sm font-medium rounded-full
                           disabled:opacity-50 disabled:cursor-not-allowed
                           cursor-pointer transition-all duration-200
                         "
@@ -779,10 +789,10 @@ export default function StudioPage() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleGenerate}
-                disabled={!text.trim() || isGenerating || !isConfigured()}
+                disabled={!studioText.trim() || isGenerating || !isConfigured()}
                 className={`
                   w-full mt-4 sm:mt-5 px-6 sm:px-8 py-3 sm:py-4 rounded-2xl
-                  font-bold text-base sm:text-lg text-white
+                  font-bold studioText-base sm:studioText-lg studioText-white
                   disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                   flex items-center justify-center gap-2 sm:gap-3 cursor-pointer
                   transition-all duration-300
@@ -821,13 +831,13 @@ export default function StudioPage() {
         >
           {/* Header - Desktop only */}
           <header className="hidden lg:flex h-16 border-b border-white/30 px-6 items-center justify-between glass-container-solid rounded-none">
-            <h2 className="text-lg font-semibold text-slate-700">成果画廊</h2>
+            <h2 className="studioText-lg font-semibold studioText-slate-700">成果画廊</h2>
             {history.length > 0 && (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setHistory([])}
-                className="text-sm text-slate-500 hover:text-rose-500 transition-colors cursor-pointer px-3 py-1.5 rounded-lg hover:bg-rose-50"
+                className="studioText-sm studioText-slate-500 hover:studioText-rose-500 transition-colors cursor-pointer px-3 py-1.5 rounded-lg hover:bg-rose-50"
               >
                 清空
               </motion.button>
@@ -836,11 +846,11 @@ export default function StudioPage() {
 
           {/* Mobile header with clear button */}
           <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-white/30">
-            <span className="text-sm text-slate-600">共 {history.length} 个音频</span>
+            <span className="studioText-sm studioText-slate-600">共 {history.length} 个音频</span>
             {history.length > 0 && (
               <button
                 onClick={() => setHistory([])}
-                className="text-sm text-rose-500 px-3 py-1 rounded-lg bg-rose-50"
+                className="studioText-sm studioText-rose-500 px-3 py-1 rounded-lg bg-rose-50"
               >
                 清空
               </button>
@@ -856,16 +866,16 @@ export default function StudioPage() {
                   animate={{ opacity: 1 }}
                   className="flex flex-col items-center justify-center h-full"
                 >
-                  <div className="glass-container px-6 sm:px-8 py-8 sm:py-10 text-center">
+                  <div className="glass-container px-6 sm:px-8 py-8 sm:py-10 studioText-center">
                     <motion.div
                       animate={{ rotate: [0, 10, -10, 0] }}
                       transition={{ duration: 2, repeat: Infinity }}
                       className="inline-block mb-4"
                     >
-                      <Music size={40} className="text-cyan-400" />
+                      <Music size={40} className="studioText-cyan-400" />
                     </motion.div>
-                    <p className="text-base sm:text-lg text-slate-600 mb-2 font-medium">等待创作</p>
-                    <p className="text-xs sm:text-sm text-slate-500">生成的音频会出现在这里</p>
+                    <p className="studioText-base sm:studioText-lg studioText-slate-600 mb-2 font-medium">等待创作</p>
+                    <p className="studioText-xs sm:studioText-sm studioText-slate-500">生成的音频会出现在这里</p>
                   </div>
                 </motion.div>
               ) : (

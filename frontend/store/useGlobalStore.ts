@@ -33,33 +33,63 @@ export interface Voice {
   description?: string;
 }
 
+// Chat 消息类型
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  quotedTexts?: string[];
+}
+
+// Studio 生成历史类型（不存储 Blob，只存储元数据）
+export interface StudioHistoryItem {
+  id: string;
+  text: string;
+  timestamp: number;
+  voice: string;
+  emotion: string;
+  color: 'pink' | 'cyan' | 'violet' | 'amber';
+}
+
 interface GlobalStore {
   // LLM Configuration
   llm: LLMConfig;
   setLLM: (config: Partial<LLMConfig>) => void;
-  
+
   // TTS Configuration
   tts: TTSConfig;
   setTTS: (config: Partial<TTSConfig>) => void;
-  
+
   // Available voices
   voices: Voice[];
   setVoices: (voices: Voice[]) => void;
-  
+
   // Available models
   models: string[];
   setModels: (models: string[]) => void;
-  
+
   // Audio Queue State
   isPlaying: boolean;
   currentAudio: string | null;
   setIsPlaying: (playing: boolean) => void;
   setCurrentAudio: (text: string | null) => void;
-  
+
   // UI State
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
-  
+
+  // Chat State (持久化)
+  chatMessages: ChatMessage[];
+  setChatMessages: (messages: ChatMessage[]) => void;
+  addChatMessage: (message: ChatMessage) => void;
+  updateChatMessage: (id: string, updates: Partial<ChatMessage>) => void;
+  clearChatMessages: () => void;
+
+  // Studio State (持久化)
+  studioText: string;
+  setStudioText: (text: string) => void;
+
   // Check if configured
   isConfigured: () => boolean;
 }
@@ -78,7 +108,7 @@ export const useGlobalStore = create<GlobalStore>()(
       // Default TTS Config
       tts: {
         baseUrl: TTS_BASE_URL,
-        voice: 'girl_01',
+        voice: 'default',
         emotion: 'default',
         speed: 1.0,
         temperature: 0.3,
@@ -107,6 +137,21 @@ export const useGlobalStore = create<GlobalStore>()(
       sidebarCollapsed: false,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
+      // Chat State
+      chatMessages: [],
+      setChatMessages: (messages) => set({ chatMessages: messages }),
+      addChatMessage: (message) => set((state) => ({ chatMessages: [...state.chatMessages, message] })),
+      updateChatMessage: (id, updates) => set((state) => ({
+        chatMessages: state.chatMessages.map((m) =>
+          m.id === id ? { ...m, ...updates } : m
+        ),
+      })),
+      clearChatMessages: () => set({ chatMessages: [] }),
+
+      // Studio State
+      studioText: '',
+      setStudioText: (text) => set({ studioText: text }),
+
       // Check Configuration
       isConfigured: () => {
         const state = get();
@@ -132,6 +177,11 @@ export const useGlobalStore = create<GlobalStore>()(
             baseUrl: LLM_BASE_URL,
             apiKey: LLM_API_KEY,
             model: LLM_MODEL,
+          },
+          // TTS baseUrl 始终使用环境变量的值
+          tts: {
+            ...(persisted?.tts || currentState.tts),
+            baseUrl: TTS_BASE_URL,
           },
         };
       },

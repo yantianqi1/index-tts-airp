@@ -193,16 +193,16 @@ function AudioCard({
 }
 
 export default function StudioPage() {
-  const { tts, setTTS, voices, setVoices, isConfigured, studioText, setStudioText } = useGlobalStore();
+  const { tts, studioTTS, setStudioTTS, voices, setVoices, isConfigured, studioText, setStudioText } = useGlobalStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [history, setHistory] = useState<GeneratedAudio[]>([]);
-  const [localEmotion, setLocalEmotion] = useState(tts.emotion);
-  const [localVoice, setLocalVoice] = useState(tts.voice);
-  const [localSpeed, setLocalSpeed] = useState(tts.speed);
-  const [localTemperature, setLocalTemperature] = useState(tts.temperature);
-  const [localTopP, setLocalTopP] = useState(tts.topP);
-  const [localTopK, setLocalTopK] = useState(tts.topK);
-  const [localRepetitionPenalty, setLocalRepetitionPenalty] = useState(tts.repetitionPenalty);
+  const [localEmotion, setLocalEmotion] = useState(studioTTS.emotion);
+  const [localVoice, setLocalVoice] = useState(studioTTS.voice);
+  const [localSpeed, setLocalSpeed] = useState(studioTTS.speed);
+  const [localTemperature, setLocalTemperature] = useState(studioTTS.temperature);
+  const [localTopP, setLocalTopP] = useState(studioTTS.topP);
+  const [localTopK, setLocalTopK] = useState(studioTTS.topK);
+  const [localRepetitionPenalty, setLocalRepetitionPenalty] = useState(studioTTS.repetitionPenalty);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [saveToRepo, setSaveToRepo] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -212,14 +212,14 @@ export default function StudioPage() {
 
   // 从持久化的 store 同步 TTS 参数（处理 hydration）
   useEffect(() => {
-    setLocalVoice(tts.voice);
-    setLocalEmotion(tts.emotion);
-    setLocalSpeed(tts.speed);
-    setLocalTemperature(tts.temperature);
-    setLocalTopP(tts.topP);
-    setLocalTopK(tts.topK);
-    setLocalRepetitionPenalty(tts.repetitionPenalty);
-  }, [tts.voice, tts.emotion, tts.speed, tts.temperature, tts.topP, tts.topK, tts.repetitionPenalty]);
+    setLocalVoice(studioTTS.voice);
+    setLocalEmotion(studioTTS.emotion);
+    setLocalSpeed(studioTTS.speed);
+    setLocalTemperature(studioTTS.temperature);
+    setLocalTopP(studioTTS.topP);
+    setLocalTopK(studioTTS.topK);
+    setLocalRepetitionPenalty(studioTTS.repetitionPenalty);
+  }, [studioTTS.voice, studioTTS.emotion, studioTTS.speed, studioTTS.temperature, studioTTS.topP, studioTTS.topK, studioTTS.repetitionPenalty]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
@@ -269,7 +269,8 @@ export default function StudioPage() {
     setIsGenerating(true);
 
     try {
-      setTTS({
+      // 保存本地参数到 studioTTS 配置
+      setStudioTTS({
         voice: localVoice,
         emotion: localEmotion,
         speed: localSpeed,

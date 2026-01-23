@@ -19,6 +19,24 @@ export interface TTSConfig {
   responseFormat: string;
 }
 
+// 聊天模块专用 TTS 配置（简化版，只包含常用参数）
+export interface ChatTTSConfig {
+  voice: string;
+  speed: number;
+  temperature: number;
+}
+
+// 声音画室专用 TTS 配置（完整版，包含所有高级参数）
+export interface StudioTTSConfig {
+  voice: string;
+  emotion: string;
+  speed: number;
+  temperature: number;
+  topP: number;
+  topK: number;
+  repetitionPenalty: number;
+}
+
 // TTS API 基础路径（可通过环境变量覆盖）
 export const TTS_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 
@@ -65,9 +83,17 @@ interface GlobalStore {
   llm: LLMConfig;
   setLLM: (config: Partial<LLMConfig>) => void;
 
-  // TTS Configuration
+  // TTS Configuration (全局基础配置，包含 baseUrl 等)
   tts: TTSConfig;
   setTTS: (config: Partial<TTSConfig>) => void;
+
+  // 聊天模块独立 TTS 配置
+  chatTTS: ChatTTSConfig;
+  setChatTTS: (config: Partial<ChatTTSConfig>) => void;
+
+  // 声音画室独立 TTS 配置
+  studioTTS: StudioTTSConfig;
+  setStudioTTS: (config: Partial<StudioTTSConfig>) => void;
 
   // Available voices
   voices: Voice[];
@@ -119,7 +145,7 @@ export const useGlobalStore = create<GlobalStore>()(
       },
       setLLM: (config) => set((state) => ({ llm: { ...state.llm, ...config } })),
 
-      // Default TTS Config
+      // Default TTS Config (全局基础配置)
       tts: {
         baseUrl: TTS_BASE_URL,
         voice: 'default',
@@ -132,6 +158,26 @@ export const useGlobalStore = create<GlobalStore>()(
         responseFormat: 'wav',
       },
       setTTS: (config) => set((state) => ({ tts: { ...state.tts, ...config } })),
+
+      // 聊天模块独立 TTS 配置
+      chatTTS: {
+        voice: 'default',
+        speed: 1.0,
+        temperature: 0.3,
+      },
+      setChatTTS: (config) => set((state) => ({ chatTTS: { ...state.chatTTS, ...config } })),
+
+      // 声音画室独立 TTS 配置
+      studioTTS: {
+        voice: 'default',
+        emotion: 'default',
+        speed: 1.0,
+        temperature: 0.3,
+        topP: 0.7,
+        topK: 20,
+        repetitionPenalty: 1.2,
+      },
+      setStudioTTS: (config) => set((state) => ({ studioTTS: { ...state.studioTTS, ...config } })),
 
       // Voices
       voices: [],
@@ -203,6 +249,10 @@ export const useGlobalStore = create<GlobalStore>()(
             ...(persisted?.tts || currentState.tts),
             baseUrl: TTS_BASE_URL,
           },
+          // 聊天模块 TTS 配置保持独立
+          chatTTS: persisted?.chatTTS || currentState.chatTTS,
+          // 声音画室 TTS 配置保持独立
+          studioTTS: persisted?.studioTTS || currentState.studioTTS,
         };
       },
     }

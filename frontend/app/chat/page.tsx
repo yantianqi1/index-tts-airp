@@ -12,7 +12,8 @@ export default function ChatPage() {
   const {
     llm,
     tts,
-    setTTS,
+    chatTTS,
+    setChatTTS,
     isConfigured,
     chatMessages,
     addChatMessage,
@@ -32,18 +33,30 @@ export default function ChatPage() {
   const audioManagerRef = useRef<AudioQueueManager | null>(null);
   const processedTextsRef = useRef<Set<string>>(new Set());
 
-  // Initialize audio manager
+  // Initialize audio manager with combined config
   useEffect(() => {
-    audioManagerRef.current = new AudioQueueManager(tts);
+    const combinedConfig = {
+      ...tts,
+      voice: chatTTS.voice,
+      speed: chatTTS.speed,
+      temperature: chatTTS.temperature,
+    };
+    audioManagerRef.current = new AudioQueueManager(combinedConfig);
     return () => {
       audioManagerRef.current?.stop();
     };
   }, []);
 
-  // Update audio manager config
+  // Update audio manager config when chatTTS changes
   useEffect(() => {
-    audioManagerRef.current?.updateConfig(tts);
-  }, [tts]);
+    const combinedConfig = {
+      ...tts,
+      voice: chatTTS.voice,
+      speed: chatTTS.speed,
+      temperature: chatTTS.temperature,
+    };
+    audioManagerRef.current?.updateConfig(combinedConfig);
+  }, [tts, chatTTS]);
 
   // Auto scroll
   useEffect(() => {
@@ -75,7 +88,7 @@ export default function ChatPage() {
       // 从角色音色文件中提取音色名（去掉 .wav 后缀）
       const voiceName = character.voice.replace(/\.wav$/i, '');
       // 使用角色专属音色
-      setTTS({ voice: `char/${character.id}/${voiceName}` });
+      setChatTTS({ voice: `char/${character.id}/${voiceName}` });
     }
     setShowSettings(false);
   };
@@ -343,8 +356,9 @@ export default function ChatPage() {
                   )}
                 </div>
 
-                {/* Voice Selection */}
-                <div>
+                {/* Voice Selection - 只在未选择角色时显示 */}
+                {!selectedCharacter && (
+                <div className="mb-4">
                   <h3 className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
                     <Volume2 size={16} />
                     音色选择
@@ -356,11 +370,11 @@ export default function ChatPage() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => {
-                          setTTS({ voice: voice.id });
+                          setChatTTS({ voice: voice.id });
                           setSelectedCharacter(null);
                         }}
                         className={`px-3 py-2 rounded-xl text-sm transition-all cursor-pointer ${
-                          tts.voice === voice.id && !selectedCharacter
+                          chatTTS.voice === voice.id && !selectedCharacter
                             ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md'
                             : 'bg-white/60 text-slate-600 hover:bg-white/80 border border-white/50'
                         }`}
@@ -374,6 +388,58 @@ export default function ChatPage() {
                       暂无可用音色，请检查后端服务
                     </p>
                   )}
+                </div>
+                )}
+
+                {/* TTS Parameters - 语速和温度调节 */}
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
+                    <Settings size={16} />
+                    语音参数
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* 语速调节 */}
+                    <div className="bg-white/40 rounded-xl p-3 border border-white/50">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs text-slate-600">语速</span>
+                        <span className="text-xs font-medium text-rose-500">{chatTTS.speed.toFixed(1)}x</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="2.0"
+                        step="0.1"
+                        value={chatTTS.speed}
+                        onChange={(e) => setChatTTS({ speed: parseFloat(e.target.value) })}
+                        className="w-full h-2 bg-gradient-to-r from-rose-200 to-violet-200 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                      />
+                      <div className="flex justify-between text-xs text-slate-400 mt-1">
+                        <span>0.5x</span>
+                        <span>2.0x</span>
+                      </div>
+                    </div>
+
+                    {/* 温度调节 */}
+                    <div className="bg-white/40 rounded-xl p-3 border border-white/50">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs text-slate-600">温度</span>
+                        <span className="text-xs font-medium text-rose-500">{chatTTS.temperature.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1.0"
+                        step="0.05"
+                        value={chatTTS.temperature}
+                        onChange={(e) => setChatTTS({ temperature: parseFloat(e.target.value) })}
+                        className="w-full h-2 bg-gradient-to-r from-rose-200 to-violet-200 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                      />
+                      <div className="flex justify-between text-xs text-slate-400 mt-1">
+                        <span>稳定</span>
+                        <span>多样</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Current Selection Info */}

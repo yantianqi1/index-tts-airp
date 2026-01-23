@@ -382,28 +382,43 @@ async def get_characters():
                 continue
 
             char_id = char_dir.name
+
+            # 跳过隐藏目录和 .ipynb_checkpoints 等系统目录
+            if char_id.startswith('.') or char_id == '__pycache__':
+                continue
+
             voice_file = None
             system_prompt = ""
+            char_name = char_id  # 默认使用目录名作为角色名
 
             # 查找 wav 音频文件
             wav_files = list(char_dir.glob("*.wav")) + list(char_dir.glob("*.WAV"))
             if wav_files:
                 voice_file = wav_files[0].name
 
-            # 读取 config.json
+            # 读取角色配置文件（支持任意 .json 文件，优先使用 config.json）
             config_path = char_dir / "config.json"
+            if not config_path.exists():
+                # 如果没有 config.json，尝试查找其他 json 文件
+                json_files = list(char_dir.glob("*.json"))
+                if json_files:
+                    config_path = json_files[0]
+
             if config_path.exists():
                 try:
                     with open(config_path, "r", encoding="utf-8") as f:
                         config_data = json.load(f)
-                        system_prompt = config_data.get("system_prompt", "")
+                        # 支持 system_prompt 或 system_prompt_instruction 字段
+                        system_prompt = config_data.get("system_prompt", "") or config_data.get("system_prompt_instruction", "")
+                        # 获取角色名
+                        char_name = config_data.get("char_name", char_id)
                 except Exception as e:
                     logger.warning(f"读取角色配置失败 {char_id}: {e}")
 
             characters.append(
                 CharacterInfo(
                     id=char_id,
-                    name=char_id,
+                    name=char_name,
                     voice=voice_file,
                     system_prompt=system_prompt
                 )

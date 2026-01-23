@@ -522,30 +522,51 @@ full_restart() {
     # Step 1: 强制停止所有相关进程
     echo -e "${PURPLE}[1/6] 强制停止所有相关进程${NC}"
 
-    # 停止端口上的进程
-    local pids=$(lsof -ti:$PROD_PORT 2>/dev/null)
-    if [ -n "$pids" ]; then
-        echo "$pids" | xargs kill -9 2>/dev/null
-        print_success "已强制停止端口 $PROD_PORT 上的进程"
-    fi
+    # 使用多种方法杀死端口进程
+    kill_port_process() {
+        local port=$1
+
+        # 方法1: lsof
+        local pids=$(lsof -ti:$port 2>/dev/null)
+        if [ -n "$pids" ]; then
+            echo "$pids" | xargs kill -9 2>/dev/null
+        fi
+
+        # 方法2: fuser (Linux)
+        if command -v fuser &> /dev/null; then
+            fuser -k -n tcp $port 2>/dev/null
+        fi
+
+        # 方法3: ss + kill (Linux)
+        if command -v ss &> /dev/null; then
+            ss -tlnp 2>/dev/null | grep ":$port " | grep -oP '(?<=pid=)\d+' | xargs -r kill -9 2>/dev/null
+        fi
+
+        # 方法4: netstat (fallback)
+        if command -v netstat &> /dev/null; then
+            netstat -tlnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 | xargs -r kill -9 2>/dev/null
+        fi
+    }
+
+    # 杀死端口进程
+    kill_port_process $PROD_PORT
+    print_info "尝试释放端口 $PROD_PORT..."
 
     # 停止所有 node/next 相关进程
     pkill -9 -f "next dev" 2>/dev/null
     pkill -9 -f "next start" 2>/dev/null
     pkill -9 -f "next-server" 2>/dev/null
+    pkill -9 -f "node.*next" 2>/dev/null
 
     # 清理 PID 文件
     rm -f "$PID_FILE"
 
     # 等待进程完全退出
-    sleep 2
+    sleep 3
 
-    # 再次检查并强制清理
-    pids=$(lsof -ti:$PROD_PORT 2>/dev/null)
-    if [ -n "$pids" ]; then
-        echo "$pids" | xargs kill -9 2>/dev/null
-        sleep 1
-    fi
+    # 再次强力清理
+    kill_port_process $PROD_PORT
+    sleep 2
 
     print_success "进程清理完成"
     echo ""
@@ -600,17 +621,29 @@ full_restart() {
     echo -e "${PURPLE}[6/6] 启动生产服务器${NC}"
 
     # 最后一次强制清理端口
-    pids=$(lsof -ti:$PROD_PORT 2>/dev/null)
-    if [ -n "$pids" ]; then
-        print_warning "端口 $PROD_PORT 仍被占用，最终强制释放..."
-        echo "$pids" | xargs kill -9 2>/dev/null
-        sleep 2
+    kill_port_process $PROD_PORT
+    sleep 2
+
+    # 检查端口是否真的空闲
+    local port_in_use=false
+    if command -v ss &> /dev/null; then
+        if ss -tln 2>/dev/null | grep -q ":$PROD_PORT "; then
+            port_in_use=true
+        fi
+    elif command -v netstat &> /dev/null; then
+        if netstat -tln 2>/dev/null | grep -q ":$PROD_PORT "; then
+            port_in_use=true
+        fi
+    elif command -v lsof &> /dev/null; then
+        if lsof -i:$PROD_PORT -sTCP:LISTEN >/dev/null 2>&1; then
+            port_in_use=true
+        fi
     fi
 
-    # 验证端口已释放
-    if check_port $PROD_PORT; then
-        print_error "端口 $PROD_PORT 无法释放，请手动检查"
-        print_info "尝试运行: lsof -i:$PROD_PORT"
+    if [ "$port_in_use" = true ]; then
+        print_error "端口 $PROD_PORT 仍被占用，请手动检查"
+        print_info "尝试运行: ss -tlnp | grep $PROD_PORT"
+        print_info "或运行: fuser -k $PROD_PORT/tcp"
         return 1
     fi
 

@@ -1,9 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
-    // 开发环境下将 /api 请求代理到后端
-    const backendPort = process.env.BACKEND_PORT || '8081';
-    const backendUrl = process.env.BACKEND_URL || `http://localhost:${backendPort}`;
+    // 将 /api 请求代理到 GPU 后端服务器
+    const backendUrl = process.env.BACKEND_URL || 'http://i-2.gpushare.com:35808';
     return [
       {
         source: '/api/:path*',

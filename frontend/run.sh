@@ -55,6 +55,7 @@ print_menu() {
     echo -e "  ${GREEN}14${NC} 检查依赖安全漏洞"
     echo -e "  ${GREEN}15${NC} 清理缓存 (.next)"
     echo -e "  ${GREEN}16${NC} 显示项目信息"
+    echo -e "  ${RED}17${NC} ${RED}一条龙重启 (清缓存+重装+构建+重启)${NC}"
     echo -e "  ${GREEN}0${NC}  退出"
     echo ""
 }
@@ -509,6 +510,83 @@ show_project_info() {
     fi
 }
 
+# 17. 一条龙重启
+full_restart() {
+    echo ""
+    echo -e "${RED}╔════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║${NC}              ${YELLOW}一条龙重启服务${NC}                            ${RED}║${NC}"
+    echo -e "${RED}╚════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    # Step 1: 停止现有服务
+    echo -e "${PURPLE}[1/6] 停止现有服务${NC}"
+    stop_frontend
+    echo ""
+
+    # Step 2: 清理缓存
+    echo -e "${PURPLE}[2/6] 清理缓存${NC}"
+    if [ -d ".next" ]; then
+        rm -rf .next
+        print_success "已删除 .next 目录"
+    else
+        print_info ".next 目录不存在，跳过"
+    fi
+    if [ -d ".turbo" ]; then
+        rm -rf .turbo
+        print_success "已删除 .turbo 目录"
+    fi
+    echo ""
+
+    # Step 3: 删除 node_modules
+    echo -e "${PURPLE}[3/6] 清理依赖${NC}"
+    if [ -d "node_modules" ]; then
+        rm -rf node_modules
+        print_success "已删除 node_modules"
+    fi
+    if [ -f "package-lock.json" ]; then
+        rm -f package-lock.json
+        print_success "已删除 package-lock.json"
+    fi
+    echo ""
+
+    # Step 4: 重新安装依赖
+    echo -e "${PURPLE}[4/6] 安装依赖${NC}"
+    npm install
+    if [ $? -ne 0 ]; then
+        print_error "依赖安装失败，终止流程"
+        return 1
+    fi
+    print_success "依赖安装完成"
+    echo ""
+
+    # Step 5: 构建生产版本
+    echo -e "${PURPLE}[5/6] 构建生产版本${NC}"
+    npm run build
+    if [ $? -ne 0 ]; then
+        print_error "构建失败，终止流程"
+        return 1
+    fi
+    print_success "构建完成"
+    echo ""
+
+    # Step 6: 确保端口被释放并启动
+    echo -e "${PURPLE}[6/6] 启动生产服务器${NC}"
+
+    # 再次确保端口被释放
+    local pids=$(lsof -ti:$PROD_PORT 2>/dev/null)
+    if [ -n "$pids" ]; then
+        print_warning "端口 $PROD_PORT 仍被占用，强制释放..."
+        echo "$pids" | xargs kill -9 2>/dev/null
+        sleep 1
+    fi
+
+    print_info "服务器地址: http://localhost:$PROD_PORT"
+    print_info "按 Ctrl+C 停止服务器"
+    echo ""
+
+    npm run start
+}
+
 # ============================================
 # 主程序
 # ============================================
@@ -535,11 +613,12 @@ main() {
             14|audit)     security_check ;;
             15|clean)     clean_cache ;;
             16|info)      show_project_info ;;
+            17|restart)   full_restart ;;
             0|exit|quit)  exit 0 ;;
             *)
                 print_error "未知选项: $1"
                 echo "使用方法: $0 [选项]"
-                echo "选项: 1-16 或 dev|build|start|lint|install|reinstall|status|stop|logs|dev-bg|start-bg|full|update|audit|clean|info"
+                echo "选项: 1-17 或 dev|build|start|lint|install|reinstall|status|stop|logs|dev-bg|start-bg|full|update|audit|clean|info|restart"
                 exit 1
                 ;;
         esac
@@ -571,12 +650,13 @@ main() {
             14) security_check ;;
             15) clean_cache ;;
             16) show_project_info ;;
+            17) full_restart ;;
             0)
                 print_info "再见!"
                 exit 0
                 ;;
             *)
-                print_error "无效选项，请输入 0-16"
+                print_error "无效选项，请输入 0-17"
                 ;;
         esac
 

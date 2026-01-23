@@ -8,6 +8,7 @@ export interface LLMConfig {
 }
 
 export interface TTSConfig {
+  baseUrl: string;
   voice: string;
   emotion: string;
   speed: number;
@@ -18,8 +19,13 @@ export interface TTSConfig {
   responseFormat: string;
 }
 
-// TTS API 基础路径（固定使用相对路径）
-export const TTS_BASE_URL = '/api';
+// TTS API 基础路径（可通过环境变量覆盖）
+export const TTS_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
+
+// LLM 配置（可通过环境变量覆盖）
+export const LLM_BASE_URL = process.env.NEXT_PUBLIC_LLM_BASE_URL || 'http://localhost:11434/v1';
+export const LLM_API_KEY = process.env.NEXT_PUBLIC_LLM_API_KEY || 'ollama';
+export const LLM_MODEL = process.env.NEXT_PUBLIC_LLM_MODEL || 'qwen2.5:latest';
 
 export interface Voice {
   id: string;
@@ -61,16 +67,17 @@ interface GlobalStore {
 export const useGlobalStore = create<GlobalStore>()(
   persist(
     (set, get) => ({
-      // Default LLM Config
+      // Default LLM Config (从环境变量读取)
       llm: {
-        baseUrl: 'http://localhost:11434/v1',
-        apiKey: 'ollama',
-        model: 'qwen2.5:latest',
+        baseUrl: LLM_BASE_URL,
+        apiKey: LLM_API_KEY,
+        model: LLM_MODEL,
       },
       setLLM: (config) => set((state) => ({ llm: { ...state.llm, ...config } })),
-      
+
       // Default TTS Config
       tts: {
+        baseUrl: TTS_BASE_URL,
         voice: 'girl_01',
         emotion: 'default',
         speed: 1.0,
@@ -81,25 +88,25 @@ export const useGlobalStore = create<GlobalStore>()(
         responseFormat: 'wav',
       },
       setTTS: (config) => set((state) => ({ tts: { ...state.tts, ...config } })),
-      
+
       // Voices
       voices: [],
       setVoices: (voices) => set({ voices }),
-      
+
       // Models
       models: [],
       setModels: (models) => set({ models }),
-      
+
       // Audio State
       isPlaying: false,
       currentAudio: null,
       setIsPlaying: (playing) => set({ isPlaying: playing }),
       setCurrentAudio: (text) => set({ currentAudio: text }),
-      
+
       // UI State
       sidebarCollapsed: false,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-      
+
       // Check Configuration
       isConfigured: () => {
         const state = get();
@@ -107,12 +114,27 @@ export const useGlobalStore = create<GlobalStore>()(
           state.llm.baseUrl &&
           state.llm.apiKey &&
           state.llm.model &&
+          state.tts.baseUrl &&
           state.tts.voice
         );
       },
     }),
     {
       name: 'voice-ai-workbench',
+      // 合并策略：环境变量的 LLM 配置优先
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<GlobalStore> | undefined;
+        return {
+          ...currentState,
+          ...persisted,
+          // LLM 配置始终使用环境变量的值
+          llm: {
+            baseUrl: LLM_BASE_URL,
+            apiKey: LLM_API_KEY,
+            model: LLM_MODEL,
+          },
+        };
+      },
     }
   )
 );

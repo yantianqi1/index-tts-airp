@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Download, Volume2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface AudioPlayerProps {
   audioUrl?: string;
@@ -98,9 +99,10 @@ export default function AudioPlayer({
   };
 
   const src = objectUrl || audioUrl;
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+    <div className="flex items-center gap-3 p-3 bg-white/50 backdrop-blur-xl rounded-2xl border border-white/50 shadow-glass">
       <audio
         ref={audioRef}
         src={src}
@@ -112,9 +114,17 @@ export default function AudioPlayer({
       />
 
       {/* Play/Pause Button */}
-      <button
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
         onClick={handlePlayPause}
-        className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+        className={`
+          p-2.5 rounded-xl transition-all duration-200 cursor-pointer flex-shrink-0
+          ${isPlaying
+            ? 'bg-gradient-to-r from-rose-400 to-pink-500 shadow-candy'
+            : 'bg-gradient-to-r from-cyan-400 to-blue-500 shadow-candy-blue'
+          }
+        `}
         aria-label={isPlaying ? '暂停' : '播放'}
       >
         {isPlaying ? (
@@ -122,40 +132,47 @@ export default function AudioPlayer({
         ) : (
           <Play size={18} className="text-white" />
         )}
-      </button>
+      </motion.button>
 
       {/* Progress Bar */}
-      <div className="flex-1 flex flex-col gap-1">
-        <input
-          type="range"
-          min="0"
-          max={duration || 0}
-          value={currentTime}
-          onChange={handleSeek}
-          className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer
-            [&::-webkit-slider-thumb]:appearance-none
-            [&::-webkit-slider-thumb]:w-3
-            [&::-webkit-slider-thumb]:h-3
-            [&::-webkit-slider-thumb]:rounded-full
-            [&::-webkit-slider-thumb]:bg-blue-500
-            [&::-webkit-slider-thumb]:cursor-pointer"
-        />
-        <div className="flex justify-between text-xs text-slate-400">
-          <span>{formatTime(currentTime)}</span>
+      <div className="flex-1 flex flex-col gap-1.5">
+        <div className="relative w-full h-2 bg-slate-200/60 rounded-full overflow-hidden">
+          {/* Progress fill */}
+          <motion.div
+            className="absolute left-0 top-0 h-full bg-gradient-to-r from-rose-400 to-violet-400 rounded-full"
+            style={{ width: `${progress}%` }}
+            initial={false}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.1 }}
+          />
+          {/* Interactive range input */}
+          <input
+            type="range"
+            min="0"
+            max={duration || 0}
+            value={currentTime}
+            onChange={handleSeek}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+        </div>
+        <div className="flex justify-between text-xs text-slate-500">
+          <span className="font-medium">{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
       </div>
 
       {/* Download Button */}
       {showDownload && (
-        <button
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           onClick={handleDownload}
-          className="p-2 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+          className="p-2 hover:bg-white/60 rounded-xl transition-colors cursor-pointer flex-shrink-0"
           aria-label="下载音频"
           title="下载音频"
         >
-          <Download size={18} className="text-slate-400" />
-        </button>
+          <Download size={18} className="text-slate-500 hover:text-violet-500 transition-colors" />
+        </motion.button>
       )}
 
       {/* Volume Icon */}

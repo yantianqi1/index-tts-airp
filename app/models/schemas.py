@@ -43,3 +43,15 @@ class UploadResponse(BaseModel):
     message: str
     voice_id: Optional[str] = None
     emotion: Optional[str] = None
+
+
+class AudioRepositoryItem(BaseModel):
+    id: str
+    filename: str
+    url: str
+    created_at: int
+    size_bytes: int
+
+
+class AudioRepositoryResponse(BaseModel):
+    items: list[AudioRepositoryItem]

@@ -10,7 +10,15 @@ class Settings(BaseSettings):
     app_name: str = "VoiceNexus"
     app_version: str = "1.0.0"
     host: str = "0.0.0.0"
-    port: int = 8081
+    port: int = 8080
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        # 支持 BACKEND_PORT 作为 port 的别名
+        fields = {
+            'port': {'env': ['BACKEND_PORT', 'PORT']}
+        }
     
     # 路径配置
     weights_dir: Path = Path("./weights")

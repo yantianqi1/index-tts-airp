@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
 
@@ -15,7 +16,9 @@ from app.models.schemas import (
     TTSRequest,
     VoicesResponse,
     VoiceInfo,
-    UploadResponse
+    UploadResponse,
+    AudioRepositoryResponse,
+    AudioRepositoryItem
 )
 from app.utils.audio import (
     save_audio_to_wav,
@@ -94,6 +97,10 @@ app = FastAPI(
 )
 
 
+# 提供生成音频的静态访问
+app.mount("/generated_audio", StaticFiles(directory=str(settings.generated_audio_dir), check_dir=False), name="generated_audio")
+
+
 @app.get("/")
 async def root():
     """健康检查"""
@@ -166,6 +173,39 @@ async def get_voices():
     except Exception as e:
         logger.error(f"获取音色列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/v1/audio/repository", response_model=AudioRepositoryResponse)
+async def list_audio_repository():
+    # 获取已保存的音频列表
+    try:
+        if not settings.generated_audio_dir.exists():
+            return AudioRepositoryResponse(items=[])
+
+        items = []
+        audio_files = [
+            *settings.generated_audio_dir.glob("*.wav"),
+            *settings.generated_audio_dir.glob("*.mp3"),
+        ]
+        audio_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+        for file_path in audio_files:
+            stat = file_path.stat()
+            items.append(
+                AudioRepositoryItem(
+                    id=file_path.stem,
+                    filename=file_path.name,
+                    url=f"/generated_audio/{file_path.name}",
+                    created_at=int(stat.st_mtime * 1000),
+                    size_bytes=stat.st_size,
+                )
+            )
+
+        return AudioRepositoryResponse(items=items)
+    except Exception as e:
+        logger.error(f"获取音频仓库失败: {e}")
+        raise HTTPException(status_code=500, detail="获取音频仓库失败")
 
 
 @app.post("/v1/audio/speech")

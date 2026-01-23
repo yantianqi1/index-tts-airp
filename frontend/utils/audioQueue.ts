@@ -105,3 +105,5 @@ export class AudioQueueManager {
     return this.queue.length;
   }
 }
+
+export { extractQuotedTexts } from './llmApi';

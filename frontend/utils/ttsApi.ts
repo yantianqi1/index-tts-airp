@@ -19,12 +19,42 @@ export interface TTSSaveOptions {
   saveName?: string;
 }
 
+const stripTrailingSlash = (value: string) => value.replace(/\/+$/, '');
+
+const resolveBaseRoot = (baseUrl?: string) => {
+  const raw = (baseUrl || TTS_BASE_URL || '').trim();
+  const normalized = stripTrailingSlash(raw);
+  if (!normalized) return '';
+
+  if (normalized.endsWith('/v1/audio/speech')) {
+    return normalized.slice(0, -'/v1/audio/speech'.length);
+  }
+
+  if (normalized.endsWith('/v1/voices')) {
+    return normalized.slice(0, -'/v1/voices'.length);
+  }
+
+  if (normalized.endsWith('/v1')) {
+    return normalized.slice(0, -'/v1'.length);
+  }
+
+  return normalized;
+};
+
+const buildUrl = (baseUrl: string | undefined, path: string) => {
+  const root = resolveBaseRoot(baseUrl);
+  const safePath = path.startsWith('/') ? path : `/${path}`;
+  return `${root}${safePath}`;
+};
+
+export const buildTtsUrl = (baseUrl: string | undefined, path: string) => buildUrl(baseUrl, path);
+
 export async function generateSpeech(
   config: TTSConfig,
   text: string,
   options: TTSSaveOptions = {}
 ): Promise<Blob> {
-  const response = await fetch(`${TTS_BASE_URL}/v1/audio/speech`, {
+  const response = await fetch(buildUrl(config.baseUrl, '/v1/audio/speech'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -51,9 +81,9 @@ export async function generateSpeech(
   return await response.blob();
 }
 
-export async function fetchVoices() {
-  const response = await fetch(`${TTS_BASE_URL}/v1/voices`);
-  
+export async function fetchVoices(baseUrl?: string) {
+  const response = await fetch(buildUrl(baseUrl, '/v1/voices'));
+
   if (!response.ok) {
     throw new Error(`Failed to fetch voices: ${response.statusText}`);
   }
@@ -61,10 +91,10 @@ export async function fetchVoices() {
   return await response.json();
 }
 
-export async function testTTSConnection(): Promise<{ success: boolean; message: string }> {
+export async function testTTSConnection(baseUrl?: string): Promise<{ success: boolean; message: string }> {
   try {
-    const response = await fetch(`${TTS_BASE_URL}/`);
-    
+    const response = await fetch(buildUrl(baseUrl, '/'));
+
     if (!response.ok) {
       return {
         success: false,

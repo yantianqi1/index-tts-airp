@@ -18,8 +18,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 配置
-DEV_PORT=3000
-PROD_PORT=3000
+DEV_PORT=3999
+PROD_PORT=3999
 LOG_FILE="$SCRIPT_DIR/frontend.log"
 PID_FILE="$SCRIPT_DIR/.frontend.pid"
 

@@ -48,7 +48,13 @@ yarn install
 ### 2. 启动开发服务器
 
 ```bash
+# 方式一：直接使用 npm
 npm run dev
+
+# 方式二：使用控制脚本（推荐）
+./run.sh        # 交互式菜单
+./run.sh 1      # 直接启动开发服务器
+./run.sh dev    # 同上
 ```
 
 访问 [http://localhost:3000](http://localhost:3000)
@@ -191,8 +197,44 @@ Content-Type: application/json
 ## 构建生产版本
 
 ```bash
+# 方式一：直接使用 npm
 npm run build
 npm start
+
+# 方式二：使用控制脚本
+./run.sh 2      # 构建
+./run.sh 3      # 启动生产服务器
+./run.sh 12     # 完整流程：安装 + 构建 + 启动
+```
+
+## 控制脚本 (run.sh)
+
+前端提供了一个功能完整的控制脚本 `run.sh`，支持数字或命令名操作：
+
+| 数字 | 命令 | 功能 |
+|-----|------|------|
+| 1 | dev | 启动开发服务器 |
+| 2 | build | 构建生产版本 |
+| 3 | start | 启动生产服务器 |
+| 4 | lint | 代码检查 |
+| 5 | install | 安装依赖 |
+| 6 | reinstall | 清理并重新安装依赖 |
+| 7 | status | 查看运行状态 |
+| 8 | stop | 停止前端服务 |
+| 9 | logs | 查看日志 |
+| 10 | dev-bg | 后台启动开发服务器 |
+| 11 | start-bg | 后台启动生产服务器 |
+| 12 | full | 完整构建流程 |
+| 13 | update | 更新依赖 |
+| 14 | audit | 安全漏洞检查 |
+| 15 | clean | 清理缓存 |
+| 16 | info | 显示项目信息 |
+
+使用示例：
+```bash
+./run.sh          # 交互式菜单
+./run.sh 7        # 查看状态
+./run.sh status   # 同上
 ```
 
 ## 常见问题

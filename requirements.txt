@@ -11,6 +11,7 @@ librosa==0.10.2.post1
 ffmpeg-python==0.2.0
 aiofiles==23.2.1
 openai>=1.0.0
+httpx>=0.25.0  # 用于集群模式负载均衡代理
 
 # IndexTTS2 运行依赖（对齐 index-tts/pyproject.toml）
 accelerate==1.8.1

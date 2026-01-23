@@ -620,32 +620,19 @@ full_restart() {
     # Step 6: 最终确保端口空闲并启动
     echo -e "${PURPLE}[6/6] 启动生产服务器${NC}"
 
-    # 最后一次强制清理端口
-    kill_port_process $PROD_PORT
-    sleep 2
+    # 直接杀死所有 next-server 进程
+    print_info "清理残留进程..."
+    pkill -9 -f "next-server" 2>/dev/null
+    pkill -9 -f "next start" 2>/dev/null
+    pkill -9 -f "node.*\.next" 2>/dev/null
 
-    # 检查端口是否真的空闲
-    local port_in_use=false
-    if command -v ss &> /dev/null; then
-        if ss -tln 2>/dev/null | grep -q ":$PROD_PORT "; then
-            port_in_use=true
-        fi
-    elif command -v netstat &> /dev/null; then
-        if netstat -tln 2>/dev/null | grep -q ":$PROD_PORT "; then
-            port_in_use=true
-        fi
-    elif command -v lsof &> /dev/null; then
-        if lsof -i:$PROD_PORT -sTCP:LISTEN >/dev/null 2>&1; then
-            port_in_use=true
-        fi
+    # 使用 fuser 强制释放端口 (Linux)
+    if command -v fuser &> /dev/null; then
+        fuser -k $PROD_PORT/tcp 2>/dev/null
     fi
 
-    if [ "$port_in_use" = true ]; then
-        print_error "端口 $PROD_PORT 仍被占用，请手动检查"
-        print_info "尝试运行: ss -tlnp | grep $PROD_PORT"
-        print_info "或运行: fuser -k $PROD_PORT/tcp"
-        return 1
-    fi
+    # 等待进程退出
+    sleep 3
 
     print_success "端口 $PROD_PORT 已就绪"
     print_info "服务器地址: http://localhost:$PROD_PORT"

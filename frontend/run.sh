@@ -620,19 +620,55 @@ full_restart() {
     # Step 6: 最终确保端口空闲并启动
     echo -e "${PURPLE}[6/6] 启动生产服务器${NC}"
 
-    # 直接杀死所有 next-server 进程
-    print_info "清理残留进程..."
-    pkill -9 -f "next-server" 2>/dev/null
-    pkill -9 -f "next start" 2>/dev/null
-    pkill -9 -f "node.*\.next" 2>/dev/null
+    # 强制清理端口的函数
+    force_kill_port() {
+        local port=$1
+        local max_attempts=5
+        local attempt=1
 
-    # 使用 fuser 强制释放端口 (Linux)
-    if command -v fuser &> /dev/null; then
-        fuser -k $PROD_PORT/tcp 2>/dev/null
+        while [ $attempt -le $max_attempts ]; do
+            # 检查端口是否被占用
+            if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+                return 0  # 端口已空闲
+            fi
+
+            print_info "端口 $port 仍被占用，尝试清理 ($attempt/$max_attempts)..."
+
+            # 方法1: lsof + kill -9
+            local pids=$(lsof -ti:$port 2>/dev/null)
+            if [ -n "$pids" ]; then
+                echo "$pids" | xargs kill -9 2>/dev/null
+            fi
+
+            # 方法2: fuser (Linux)
+            if command -v fuser &> /dev/null; then
+                fuser -k -9 $port/tcp 2>/dev/null
+            fi
+
+            # 方法3: 杀死相关进程名
+            pkill -9 -f "next-server" 2>/dev/null
+            pkill -9 -f "next start" 2>/dev/null
+            pkill -9 -f "node.*\.next" 2>/dev/null
+            pkill -9 -f "node.*$port" 2>/dev/null
+
+            sleep 2
+            attempt=$((attempt + 1))
+        done
+
+        # 最终检查
+        if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+            print_error "无法释放端口 $port"
+            print_info "请手动执行: kill -9 \$(lsof -ti:$port)"
+            return 1
+        fi
+        return 0
+    }
+
+    # 执行强制清理
+    if ! force_kill_port $PROD_PORT; then
+        print_error "端口清理失败，终止启动"
+        return 1
     fi
-
-    # 等待进程退出
-    sleep 3
 
     print_success "端口 $PROD_PORT 已就绪"
     print_info "服务器地址: http://localhost:$PROD_PORT"

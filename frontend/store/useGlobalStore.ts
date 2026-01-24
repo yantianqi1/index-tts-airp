@@ -37,7 +37,7 @@ export interface StudioTTSConfig {
   repetitionPenalty: number;
 }
 
-// TTS API 基础路径（可通过环境变量覆盖）
+// TTS API 基础路径（始终使用环境变量，不缓存到 localStorage）
 export const TTS_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 
 // LLM 配置（可通过环境变量覆盖）
@@ -232,7 +232,24 @@ export const useGlobalStore = create<GlobalStore>()(
     }),
     {
       name: 'voice-ai-workbench',
-      // 合并策略：环境变量的 LLM 配置优先
+      // 排除 baseUrl 相关字段，防止缓存覆盖环境变量
+      partialize: (state) => ({
+        ...state,
+        // 排除运行时状态
+        isPlaying: undefined,
+        currentAudio: undefined,
+        voices: undefined,
+        models: undefined,
+        characters: undefined,
+        // tts.baseUrl 不持久化，始终使用环境变量
+        tts: {
+          ...state.tts,
+          baseUrl: undefined,
+        },
+        // llm 配置不持久化，始终使用环境变量
+        llm: undefined,
+      }),
+      // 合并策略：环境变量的配置优先
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<GlobalStore> | undefined;
         return {

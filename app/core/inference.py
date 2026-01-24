@@ -216,9 +216,84 @@ class TTSModelEngine:
             self.is_loaded = True
             logger.info("✓ 模型加载完成")
 
+            # 启动时预热所有角色的参考音频特征
+            self._warmup_all_voices()
+
         except Exception as e:
             logger.error(f"✗ 模型加载失败: {e}")
             raise RuntimeError(f"模型加载失败: {e}")
+
+    def _warmup_all_voices(self):
+        """
+        预热所有角色的参考音频特征
+        在启动时调用，将所有角色的特征预先计算并缓存到GPU显存
+        """
+        if isinstance(self.model, MockIndexTTS):
+            logger.info("Mock 模式，跳过预热")
+            return
+
+        # 检查模型是否支持预热
+        if not hasattr(self.model, 'warmup_speaker'):
+            logger.warning("模型不支持预热功能，跳过")
+            return
+
+        logger.info("=" * 50)
+        logger.info("🔥 开始预热角色参考音频...")
+        logger.info("=" * 50)
+
+        warmup_count = 0
+        failed_count = 0
+
+        # 1. 预热 presets 目录下的所有音色
+        if settings.presets_dir.exists():
+            # 新结构: presets/{voice_id}/{emotion}.wav
+            for voice_dir in settings.presets_dir.iterdir():
+                if voice_dir.is_dir():
+                    for wav_file in list(voice_dir.glob("*.wav")) + list(voice_dir.glob("*.WAV")):
+                        try:
+                            if self.model.warmup_speaker(str(wav_file)):
+                                warmup_count += 1
+                            else:
+                                failed_count += 1
+                        except Exception as e:
+                            logger.warning(f"预热失败 {wav_file}: {e}")
+                            failed_count += 1
+
+            # 旧结构: presets/{voice}.wav
+            for wav_file in list(settings.presets_dir.glob("*.wav")) + list(settings.presets_dir.glob("*.WAV")):
+                if wav_file.is_file():
+                    try:
+                        if self.model.warmup_speaker(str(wav_file)):
+                            warmup_count += 1
+                        else:
+                            failed_count += 1
+                    except Exception as e:
+                        logger.warning(f"预热失败 {wav_file}: {e}")
+                        failed_count += 1
+
+        # 2. 预热 char 目录下的所有角色音色
+        if settings.char_dir.exists():
+            for char_dir in settings.char_dir.iterdir():
+                if char_dir.is_dir():
+                    for wav_file in list(char_dir.glob("*.wav")) + list(char_dir.glob("*.WAV")):
+                        try:
+                            if self.model.warmup_speaker(str(wav_file)):
+                                warmup_count += 1
+                            else:
+                                failed_count += 1
+                        except Exception as e:
+                            logger.warning(f"预热失败 {wav_file}: {e}")
+                            failed_count += 1
+
+        logger.info("=" * 50)
+        logger.info(f"🔥 预热完成: 成功 {warmup_count} 个, 失败 {failed_count} 个")
+
+        # 打印缓存状态
+        if hasattr(self.model, 'get_cache_info'):
+            cache_info = self.model.get_cache_info()
+            logger.info(f"📊 缓存状态: {cache_info['speaker_cache_size']} 个说话人已缓存")
+
+        logger.info("=" * 50)
 
     def _get_reference_audio_path(self, voice_id: str, emotion: str = "default") -> Path:
         """
